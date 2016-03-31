@@ -79,7 +79,7 @@ public class CdnService implements
 	protected IFloodlightProviderService ofProvider;
 	protected IRestApiService restApi;
 	protected IDeviceService deviceManager;
-	protected IRoutingService routingEngine;
+	protected IRoutingService routingEngine; //TODO: To be substituted by the ONOS PathService http://api.onosproject.org/1.5.0/org/onosproject/net/topology/PathService.html
 	protected ICounterStoreService counterStore;
 	protected OFMessageDamper messageDamper;
 	protected HashMap<String, Cdn> cdns;
