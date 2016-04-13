@@ -20,91 +20,110 @@
 
 package es.um.app.icn;
 
-import org.restlet.data.Status;
-import org.restlet.resource.Delete;
-import org.restlet.resource.Get;
-import org.restlet.resource.Put;
-import org.restlet.resource.ServerResource;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onosproject.rest.AbstractWebResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
 
-public class CacheNorthbound extends ServerResource {
+/**
+ * Some documentation about javax.ws.rs https://docs.oracle.com/javaee/6/api/javax/ws/rs/package-summary.html
+ */
 
-	@Get("json")
-	public Cache retrieve() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
-		Cdn cdn = service.retrieveCdn(cdnName);
+@Path("Cache")
+public class CacheNorthbound extends AbstractWebResource {
+	private final Logger log = LoggerFactory.getLogger(getClass());
+
+	@GET
+	@Path("Retrieve")
+    @Produces(MediaType.APPLICATION_JSON)
+	public Response retrieve(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName) {
+		ICdnService cdnService = getService(ICdnService.class);
+		Cdn cdn = cdnService.retrieveCdn(cdnName);
 		if (cdn == null) {
 			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate cdn {}", cdnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
 		}
-		String cacheName = (String) getRequestAttributes().get("cname");
-		Cache cache = service.retrieveCache(cdn, cacheName);
+		Cache cache = cdnService.retrieveCache(cdn, cacheName);
 		if (cache == null) {
 			// 404 Not Found if there's no cache with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate cache {}", cacheName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cache " + cacheName).build();
 		}
-		return cache; // 200 OK otherwise
+		ObjectNode result = new ObjectMapper().createObjectNode();
+		result.set("cache", new CacheCodec().encode(cache, this));
+		return ok(result.toString()).build(); // 200 OK otherwise
 	}
-	
-	@Put("json")
-	public Cache update(String body) {
-		Gson gson = new Gson();
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
-		Cdn cdn = service.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
-		}
-		String cacheName = (String) getRequestAttributes().get("cname");
-		Cache cache = service.retrieveCache(cdn, cacheName);
-		if (cache == null) {
-			// 404 Not Found if there's no cache with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
-		}
-		try {
-			Cache updatedCache = gson.fromJson(body, Cache.class);
-			if (!cacheName.equals(updatedCache.name)) {
-				// 400 Bad Request if names in uri and body don't match
-				setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-				return cache;
-			}
-			return service.updateCache(cdn, updatedCache); // 20O OK otherwise
-		} catch (JsonSyntaxException e) {
-			// 400 Bad Request if cannot parse Json body
-			setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-			return null;
-		} 
+
+    @PUT
+    @Path("update")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+	public Response update(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName, @QueryParam("updatedcache") String jsonupdatedcache) {
+        ICdnService cdnService = getService(ICdnService.class);
+        Cdn cdn = cdnService.retrieveCdn(cdnName);
+        if (cdn == null) {
+            // 404 Not Found if there's no cdn with this name
+            log.error("Unable to locate cdn {}", cdnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+        }
+        Cache cache = cdnService.retrieveCache(cdn, cacheName);
+        if (cache == null) {
+            // 404 Not Found if there's no cache with this name
+            log.error("Unable to locate cache {}", cacheName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cache " + cacheName).build();
+        }
+
+        try {
+            ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(jsonupdatedcache);
+            Cache updatedCache = new CacheCodec().decode(locationobject, this);
+            if (!cacheName.equals(updatedCache.name)) {
+                log.error("jsonized cache name and cname argument differ");
+                return Response.status(Response.Status.NOT_FOUND).entity("jsonized cache name and cname argument differ").build();
+            }
+            //Finally update the cache
+            cdnService.updateCache(cdn, updatedCache);
+        } catch (IOException e) {
+            e.printStackTrace();
+            log.error("Unable to parse jsonized cache in param updatedcache when calling update method");
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized cache in param updatedcache when calling update method").build();
+        }
+        return Response.status(Response.Status.OK).build();
 	}
-	
-	@Delete("json")
-	public Cache remove() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
-		Cdn cdn = service.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
-		}
-		String cacheName = (String) getRequestAttributes().get("cname");
-		Cache cache = service.removeCache(cdn, cacheName);
-		if (cache == null) {
+
+    @DELETE
+    @Path("remove")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response remove(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName) {
+        ICdnService cdnService = getService(ICdnService.class);
+        Cdn cdn = cdnService.retrieveCdn(cdnName);
+        if (cdn == null) {
+            // 404 Not Found if there's no cdn with this name
+            log.error("Unable to locate cdn {}", cdnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+        }
+        Cache cache = cdnService.retrieveCache(cdn, cacheName);
+        if (cache == null) {
+            // 404 Not Found if there's no cache with this name
+            log.error("Unable to locate cache {}", cacheName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cache " + cacheName).build();
+        }
+		Cache deletedcache = cdnService.removeCache(cdn, cacheName);
+		if (deletedcache == null) {
 			// 404 Not Found if there's no cache with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+            log.error("Unable to remove cache {}", cacheName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to remove cache " + cacheName).build();
 		}
-		return cache; // 200 OK otherwise
+        ObjectNode result = new ObjectMapper().createObjectNode();
+        result.set("cache", new CacheCodec().encode(deletedcache, this));
+        return ok(result.toString()).build(); // 200 OK otherwise
 	}
 	
 }
