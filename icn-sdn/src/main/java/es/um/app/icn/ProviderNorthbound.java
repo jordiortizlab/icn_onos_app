@@ -20,91 +20,111 @@
 
 package es.um.app.icn;
 
-import org.restlet.data.Status;
-import org.restlet.resource.Delete;
-import org.restlet.resource.Get;
-import org.restlet.resource.Put;
-import org.restlet.resource.ServerResource;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onosproject.rest.AbstractWebResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
 
-public class ProviderNorthbound extends ServerResource {
+public class ProviderNorthbound extends AbstractWebResource {
+	private final Logger log = LoggerFactory.getLogger(getClass());
 
-	@Get("json")
-	public Provider retrieve() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
+	@GET
+	@Path("Retrieve")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response retrieve(@QueryParam("name")String cdnName, @QueryParam("pname")String provName) {
+		ICdnService service = getService(ICdnService.class);
 		Cdn cdn = service.retrieveCdn(cdnName);
 		if (cdn == null) {
 			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate cdn {}", cdnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
 		}
-		String provName = (String) getRequestAttributes().get("pname");
 		Provider provider = service.retrieveProvider(cdn, provName);
 		if (provider == null) {
 			// 404 Not Found if there's no provider with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate provider {}", provName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate provider " + provName).build();
 		}
-		return provider; // 200 OK otherwise
+		ObjectNode result = new ObjectMapper().createObjectNode();
+		result.set("provider", new ProviderCodec().encode(provider, this));
+		return ok(result.toString()).build(); // 200 OK otherwise
 	}
-	
-	@Put("json")
-	public Provider update(String body) {
-		Gson gson = new Gson();
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
+
+	@PUT
+	@Path("update")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response update(@QueryParam("name")String cdnName, @QueryParam("pname")String provName, @QueryParam("updatedprovider") String jsonupdatedprovider) {
+		ICdnService service = getService(ICdnService.class);
 		Cdn cdn = service.retrieveCdn(cdnName);
 		if (cdn == null) {
 			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate cdn {}", cdnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
 		}
-		String provName = (String) getRequestAttributes().get("pname");
 		Provider provider = service.retrieveProvider(cdn, provName);
 		if (provider == null) {
 			// 404 Not Found if there's no provider with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate provider {}", provName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate provider " + provName).build();
 		}
+
 		try {
-			Provider updatedProvider = gson.fromJson(body, Provider.class);
-			if (!provName.equals(updatedProvider.name)) {
-				// 400 Bad Request if names in uri and body don't match
-				setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-				return provider;
+			ObjectNode providerobject = (ObjectNode) new ObjectMapper().readTree(jsonupdatedprovider);
+			Provider updatedprovider = new ProviderCodec().decode(providerobject, this);
+			if (!provider.getName().equals(updatedprovider.getName()))
+			{
+				log.error("JSonized provider name does not match pname");
+				return Response.status(Response.Status.NOT_FOUND).entity("JSonized provider name does not match pname").build();
 			}
-			return service.updateProvider(cdn, updatedProvider); // 20O OK otherwise
-		} catch (JsonSyntaxException e) {
-			// 400 Bad Request if cannot parse Json body
-			setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-			return null;
-		} 
+			//Finally update the provider
+			service.updateProvider(cdn, updatedprovider);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+			log.error("Unable to parse jsonized provider in param updatedprovider when calling update method {}", e.toString() );
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized provider in param updatedprovider when calling update method").build();
+		} catch (IOException e) {
+			e.printStackTrace();
+			log.error("Unable to parse jsonized provider in param updatedprovider when calling update method {}", e.toString());
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized provider in param updatedprovider when calling update method").build();
+		}
+		return Response.status(Response.Status.OK).build();
 	}
-	
-	@Delete("json")
-	public Provider remove() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
+
+	@DELETE
+	@Path("remove")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response remove(@QueryParam("name")String cdnName, @QueryParam("pname")String provName) {
+		ICdnService service = getService(ICdnService.class);
 		Cdn cdn = service.retrieveCdn(cdnName);
 		if (cdn == null) {
 			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate cdn {}", cdnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
 		}
-		String provName = (String) getRequestAttributes().get("pname");
-		Provider provider = service.removeProvider(cdn, provName);
+		Provider provider = service.retrieveProvider(cdn, provName);
 		if (provider == null) {
 			// 404 Not Found if there's no provider with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate provider {}", provName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate provider " + provName).build();
 		}
-		return provider; // 200 OK otherwise
+		Provider removeProvider = service.removeProvider(cdn, provName);
+		if (removeProvider == null) {
+			// 404 Not Found if there's no provider with this name
+			log.error("Unable to remove provider {}", provName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to remove provider " + provName).build();
+		}
+		ObjectNode result = new ObjectMapper().createObjectNode();
+		result.set("provider", new ProviderCodec().encode(removeProvider, this));
+		return ok(result.toString()).build(); // 200 OK otherwise
 	}
 	
 }
