@@ -20,68 +20,87 @@
 
 package es.um.app.icn;
 
-import org.restlet.data.Status;
-import org.restlet.resource.Delete;
-import org.restlet.resource.Get;
-import org.restlet.resource.Put;
-import org.restlet.resource.ServerResource;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onosproject.rest.AbstractWebResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ProxyNorthbound extends ServerResource {
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
 
-	@Get("json")
-	public Proxy retrieve() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String name = (String) getRequestAttributes().get("name");
+public class ProxyNorthbound extends AbstractWebResource {
+	private final Logger log = LoggerFactory.getLogger(getClass());
+
+	@GET
+	@Path("Retrieve")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response retrieve(@QueryParam("pname")String name) {
+		ICdnService service = getService(ICdnService.class);
 		Proxy proxy = service.retrieveProxy(name);
 		if (proxy == null) {
 			// 404 Not Found if there's no proxy with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
+			log.error("Unable to locate proxy {}", name);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate proxy " + name).build();
 		}
-		return proxy; // 200 OK otherwise
+		ObjectNode result = new ObjectMapper().createObjectNode();
+		result.set("proxy", new ProxyCodec().encode(proxy, this));
+		return ok(result.toString()).build(); // 200 OK otherwise
 	}
-	
-	@Put("json")
-	public Proxy update(String body) {
-		Gson gson = new Gson();
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String name = (String) getRequestAttributes().get("name");
-		try {
-			Proxy proxy = gson.fromJson(body, Proxy.class);
-			if (!name.equals(proxy.name)) {
-				// 400 Bad Request if names in uri and body don't match
-				setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-				return proxy;
-			}
-			if (service.retrieveProxy(name) == null) {
-				// 404 Not Found if there's no proxy with this name
-				setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-				return proxy;
-			}
-			return service.updateProxy(proxy); // 20O OK otherwise
-		} catch (JsonSyntaxException e) {
-			// 400 Bad Request if cannot parse Json body
-			setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-			return null;
-		} 
-	}
-	
-	@Delete("json")
-	public Proxy remove() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String name = (String) getRequestAttributes().get("name");
-		Proxy proxy = service.removeProxy(name);
+
+	@PUT
+	@Path("update")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response update(@QueryParam("name")String name, @QueryParam("updatedcache") String jsonupdatedproxy) {
+		ICdnService cdnService = getService(ICdnService.class);
+		Proxy proxy = cdnService.retrieveProxy(name);
 		if (proxy == null) {
 			// 404 Not Found if there's no proxy with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate proxy {}", name);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate proxy " + name).build();
 		}
-		return proxy; // 200 OK otherwise
+        try {
+            ObjectNode proxyobject = (ObjectNode) new ObjectMapper().readTree(jsonupdatedproxy);
+            Proxy updatedProxy = new ProxyCodec().decode(proxyobject, this);
+            if (!updatedProxy.getName().equals(name)){
+                log.error("JSonized proxy name differs from name argument when updating");
+                return Response.status(Response.Status.NOT_FOUND).entity("JSonized proxy name differs from name argument when updating").build();
+            }
+            // Finally update
+            cdnService.updateProxy(updatedProxy);
+        } catch (IOException e) {
+            e.printStackTrace();
+            log.error("Unable to dejsonize proxy {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to dejsonize proxy").build();
+        }
+        return Response.status(Response.Status.OK).build();
 	}
+
+    @DELETE
+    @Path("remove")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+	public Response remove(@QueryParam("name")String name) {
+        ICdnService cdnService = getService(ICdnService.class);
+        Proxy proxy = cdnService.retrieveProxy(name);
+        if (proxy == null) {
+            // 404 Not Found if there's no proxy with this name
+            log.error("Unable to locate proxy {}", name);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate proxy " + name).build();
+        }
+        Proxy removeProxy = cdnService.removeProxy(name);
+        if (removeProxy == null)
+        {
+            log.error("Unable to remove proxy {}", name);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to remove proxy " + name).build();
+        }
+        ObjectNode result = new ObjectMapper().createObjectNode();
+        result.set("proxy", new ProxyCodec().encode(removeProxy, this));
+        return ok(result.toString()).build(); // 200 OK otherwise
+    }
 	
 }
