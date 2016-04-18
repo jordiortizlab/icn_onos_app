@@ -20,31 +20,41 @@
 
 package es.um.app.icn;
 
-import org.restlet.data.Status;
-import org.restlet.resource.Post;
-import org.restlet.resource.ServerResource;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onosproject.rest.AbstractWebResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
 
-public class ProxyRequestNorthbound extends ServerResource {
+public class ProxyRequestNorthbound extends AbstractWebResource {
+	private final Logger log = LoggerFactory.getLogger(getClass());
 
-	@Post("json")
-	public ProxyRequest create(String body) {
-		Gson gson = new Gson();
-		ICdnPrivateService service = (ICdnPrivateService) getContext().getAttributes().
-				get(ICdnPrivateService.class.getCanonicalName());
+	@PUT
+	@Path("create")
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response create(@QueryParam("newproxyrequest") String newproxyrequest) {
+		ICdnPrivateService cdnService = getService(ICdnPrivateService.class);
 		try {
-			ProxyRequest req = gson.fromJson(body, ProxyRequest.class);
-			service.processResourceRequest(req);
-			// 204 No Content if success
-			setStatus(Status.SUCCESS_NO_CONTENT);
-		} catch (JsonSyntaxException e) {
-			// 400 Bad Request if cannot parse Json body
-			setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
+			ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(newproxyrequest);
+			ProxyRequest newproxyreq = new ProxyRequestCodec().decode(locationobject, this);
+            cdnService.processResourceRequest(newproxyreq);
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+            log.error("Unable to dejsonize the ProxyRequest");
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to dejsonize the ProxyRequest").build();
+		} catch (IOException e) {
+			e.printStackTrace();
+            log.error("Unable to dejsonize the ProxyRequest");
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to dejsonize the ProxyRequest").build();
 		}
-		// Always return empty body
-		return null;
-	}
+        return Response.status(Response.Status.OK).build();
+    }
 	
 }
