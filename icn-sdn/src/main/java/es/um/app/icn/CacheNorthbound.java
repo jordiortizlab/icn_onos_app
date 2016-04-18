@@ -20,6 +20,7 @@
 
 package es.um.app.icn;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onosproject.rest.AbstractWebResource;
@@ -89,9 +90,13 @@ public class CacheNorthbound extends AbstractWebResource {
             }
             //Finally update the cache
             cdnService.updateCache(cdn, updatedCache);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            log.error("Unable to parse jsonized cache in param updatedcache when calling update method {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized cache in param updatedcache when calling update method").build();
         } catch (IOException e) {
             e.printStackTrace();
-            log.error("Unable to parse jsonized cache in param updatedcache when calling update method");
+            log.error("Unable to parse jsonized cache in param updatedcache when calling update method {}", e.toString());
             return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized cache in param updatedcache when calling update method").build();
         }
         return Response.status(Response.Status.OK).build();
