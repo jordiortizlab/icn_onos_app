@@ -35,7 +35,7 @@ public class ProxyCodec extends JsonCodec<Proxy> {
                 .put(TYPE_FIELD, proxy.getType());
         ObjectNode locationobject = new LocationCodec().encode(proxy.getLocation(), context);
         try {
-            JsonNode locationjson = new ObjectMapper().readTree(locationobject.toString());
+            JsonNode locationjson = context.mapper().readTree(locationobject.toString());
             result.set(LOCATION_FIELD, locationjson);
         } catch (IOException e) {
             e.printStackTrace();
@@ -55,7 +55,7 @@ public class ProxyCodec extends JsonCodec<Proxy> {
         proxy.setType(json.get(TYPE_FIELD).asText());
         JsonNode locationjson = json.get(LOCATION_FIELD);
         try {
-            ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(locationjson.toString());
+            ObjectNode locationobject = (ObjectNode) context.mapper().readTree(locationjson.toString());
             proxy.setLocation(new LocationCodec().decode(locationobject, context));
         } catch (IOException e) {
             log.error("Unable to dejsonize the proxy Location");

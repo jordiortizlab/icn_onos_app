@@ -34,7 +34,7 @@ public class CacheCodec extends JsonCodec<Cache>{
                 .put(MACADDR_FIELD,cache.getMacaddr());
         ObjectNode locationobject = new LocationCodec().encode(cache.getLocation(), context);
         try {
-            JsonNode locationjson = new ObjectMapper().readTree(locationobject.toString());
+            JsonNode locationjson = context.mapper().readTree(locationobject.toString());
             result.set(LOCATION_FIELD, locationjson);
         } catch (IOException e) {
             e.printStackTrace();
@@ -53,7 +53,7 @@ public class CacheCodec extends JsonCodec<Cache>{
         cache.setMacaddr(json.get(MACADDR_FIELD).asText());
         JsonNode locationjson = json.get(LOCATION_FIELD);
         try {
-            ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(locationjson.toString());
+            ObjectNode locationobject = (ObjectNode) context.mapper().readTree(locationjson.toString());
             cache.setLocation(new LocationCodec().decode(locationobject, context));
         } catch (IOException e) {
             log.error("Unable to dejsonize the cache Location");
