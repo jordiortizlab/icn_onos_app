@@ -21,67 +21,23 @@
 package es.um.app.icn;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import es.um.app.icn.Cdn;
-import org.openflow.protocol.OFFlowMod;
-import org.openflow.protocol.OFMatch;
-import org.openflow.protocol.OFMessage;
-import org.openflow.protocol.OFPacketIn;
-import org.openflow.protocol.OFPacketIn.OFPacketInReason;
-import org.openflow.protocol.OFPacketOut;
-import org.openflow.protocol.OFPort;
-import org.openflow.protocol.OFType;
-import org.openflow.protocol.action.OFAction;
-import org.openflow.protocol.action.OFActionOutput;
-import org.openflow.util.HexString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.floodlightcontroller.core.FloodlightContext;
-import net.floodlightcontroller.core.IFloodlightProviderService;
-import net.floodlightcontroller.core.IOFMessageListener;
-import net.floodlightcontroller.core.IOFSwitch;
-import net.floodlightcontroller.core.module.FloodlightModuleContext;
-import net.floodlightcontroller.core.module.FloodlightModuleException;
-import net.floodlightcontroller.core.module.IFloodlightModule;
-import net.floodlightcontroller.core.module.IFloodlightService;
-import net.floodlightcontroller.counter.ICounterStoreService;
-import net.floodlightcontroller.devicemanager.IDevice;
-import net.floodlightcontroller.devicemanager.IDeviceService;
-import net.floodlightcontroller.devicemanager.SwitchPort;
-import net.floodlightcontroller.packet.Ethernet;
-import net.floodlightcontroller.packet.IPacket;
-import net.floodlightcontroller.packet.IPv4;
-import net.floodlightcontroller.packet.TCP;
-import net.floodlightcontroller.restserver.IRestApiService;
-import net.floodlightcontroller.routing.IRoutingService;
-import net.floodlightcontroller.routing.Route;
-import net.floodlightcontroller.staticflowentry.StaticFlowEntries;
-import net.floodlightcontroller.topology.NodePortTuple;
-import net.floodlightcontroller.util.MACAddress;
-import net.floodlightcontroller.util.OFMessageDamper;
 
 
 public class CdnService implements
-	IFloodlightModule, IOFMessageListener, net.floodlightcontroller.cdn.ICdnService, ICdnPrivateService {
+	ICdnService, ICdnPrivateService {
 
 	/** We need to register with the provider to receive OF messages */
-	protected IFloodlightProviderService ofProvider;
-	protected IRestApiService restApi;
-	protected IDeviceService deviceManager;
-	protected IRoutingService routingEngine; //TODO: To be substituted by the ONOS PathService http://api.onosproject.org/1.5.0/org/onosproject/net/topology/PathService.html
-	protected ICounterStoreService counterStore;
-	protected OFMessageDamper messageDamper;
 	protected HashMap<String, Cdn> cdns;
 	protected HashMap<String, Proxy> proxies;
 	
@@ -96,101 +52,13 @@ public class CdnService implements
 	protected static final int OFMESSAGE_DAMPER_CAPACITY = 10000;	// ms
     protected static final int OFMESSAGE_DAMPER_TIMEOUT = 250;		// ms
     protected static final boolean BIDIRECTIONAL_FLOW = true;
-    
-	@Override
-	public String getName() {
-		return CdnService.class.getSimpleName();
-	}
 
-	@Override
-	public Collection<Class<? extends IFloodlightService>> getModuleServices() {
-		// Let the module loader know that we provide CDN services
-		Collection<Class<? extends IFloodlightService>> l =
-				new ArrayList<Class<? extends IFloodlightService>>();
-	    l.add(ICdnService.class);
-	    l.add(ICdnPrivateService.class);
-	    return l;
-	}
 
-	@Override
-	public Map<Class<? extends IFloodlightService>, IFloodlightService> getServiceImpls() {
-		// Let the module loader know that this is the class that implements
-		// CDN services
-		Map<Class<? extends IFloodlightService>, IFloodlightService> m =
-				new HashMap<Class<? extends IFloodlightService>, IFloodlightService>();
-	    m.put(ICdnService.class, this);
-	    m.put(ICdnPrivateService.class, this);
-	    return m;
-	}
 
-	@Override
-	public Collection<Class<? extends IFloodlightService>> getModuleDependencies() {
-		// Let the module loader know that we depend on the Floodlight provider
-		// and the REST API service
-		Collection<Class<? extends IFloodlightService>> l =
-				new ArrayList<Class<? extends IFloodlightService>>();
-		l.add(IFloodlightProviderService.class);
-		l.add(IRestApiService.class);
-		l.add(IDeviceService.class);
-		l.add(IRoutingService.class);
-		l.add(ICounterStoreService.class);
-		return l;
-	}
-	
-	@Override
-	public boolean isCallbackOrderingPrereq(OFType type, String name) {
-		// We probably want to be called AFTER these modules
-		// (same case as in the 'loadbalancer' module)
-		return (type.equals(OFType.PACKET_IN) && 
-				(name.equals("topology") ||
-				 name.equals("devicemanager") ||
-				 name.equals("virtualizer")));
-	}
 
-	@Override
-	public boolean isCallbackOrderingPostreq(OFType type, String name) {
-		// We probably want to be called BEFORE these modules
-		return (type.equals(OFType.PACKET_IN) &&
-				(name.equals("forwarding") ||
-				 name.equals("loadbalancer")));
-	}
 
-	@Override
-	public void init(FloodlightModuleContext context) throws FloodlightModuleException {
-		// Get required references
-		ofProvider = context.getServiceImpl(IFloodlightProviderService.class);
-		restApi = context.getServiceImpl(IRestApiService.class);
-		deviceManager = context.getServiceImpl(IDeviceService.class);
-		routingEngine = context.getServiceImpl(IRoutingService.class);
-		counterStore = context.getServiceImpl(ICounterStoreService.class);
-		messageDamper = new OFMessageDamper(OFMESSAGE_DAMPER_CAPACITY,
-				EnumSet.of(OFType.FLOW_MOD),
-				OFMESSAGE_DAMPER_TIMEOUT);
-		// Initialize our data structures
-		cdns = new HashMap<String, Cdn>();
-		proxies = new HashMap<String, Proxy>();
-	}
 
-	@Override
-	public void startUp(FloodlightModuleContext context)
-			throws FloodlightModuleException {
-		// We want to receive PACKET_IN messages and register our REST API
-		ofProvider.addOFMessageListener(OFType.PACKET_IN, this);
-		restApi.addRestletRoutable(new CdnServiceRestRoutable());
-		restApi.addRestletRoutable(new CdnPrivateServiceRestRoutable());
-	}
-	
-	@Override
-	public Command receive(IOFSwitch sw, OFMessage msg, FloodlightContext ctx) {
-		switch (msg.getType()) {
-			case PACKET_IN:
-				return processPacketIn(sw, (OFPacketIn) msg, ctx);
-			default:
-				break;
         }
-		log.warn("Received unexpected message {}", msg);
-		return Command.CONTINUE;
-	}
 
 	/**
 	 * Process PACKET_IN.
