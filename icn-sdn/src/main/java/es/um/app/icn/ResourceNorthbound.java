@@ -20,31 +20,44 @@
 
 package es.um.app.icn;
 
-import org.restlet.data.Status;
-import org.restlet.resource.Get;
-import org.restlet.resource.ServerResource;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onosproject.rest.AbstractWebResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ResourceNorthbound extends ServerResource {
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
-	@Get("json")
-	public Resource retrieve() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
+public class ResourceNorthbound extends AbstractWebResource {
+	private final Logger log = LoggerFactory.getLogger(getClass());
+
+	@GET
+	@Path("Retrieve")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response retrieve(@QueryParam("name")String cdnName, @QueryParam("id")String id) {
+		ICdnService service = getService(ICdnService.class);
 		Cdn cdn = service.retrieveCdn(cdnName);
 		if (cdn == null) {
 			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate cdn {}", cdnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
 		}
-		String id = (String) getRequestAttributes().get("id");
+
 		Resource resource = service.retrieveResource(cdn, id);
 		if (resource == null) {
 			// 404 Not Found if there's no resource with this id
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate resource with id {} in cdn {}", id, cdnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate resource").build();
 		}
-		return resource; // 200 OK otherwise
+		ObjectNode result = new ObjectMapper().createObjectNode();
+		result.set("resource", new ResourceCodec().encode(resource, this));
+		return ok(result.toString()).build(); // 200 OK otherwise
+
 	}
 	
 }
