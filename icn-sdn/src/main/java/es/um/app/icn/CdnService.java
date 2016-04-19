@@ -30,6 +30,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.felix.scr.annotations.*;
+import org.onlab.packet.Ethernet;
+import org.onosproject.net.Host;
+import org.onosproject.net.HostId;
+import org.onosproject.net.packet.InboundPacket;
+import org.onosproject.net.packet.PacketContext;
+import org.onosproject.net.packet.PacketProcessor;
+import org.onosproject.net.packet.PacketService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,26 +59,56 @@ public class CdnService implements
     protected static final int OFMESSAGE_DAMPER_TIMEOUT = 250;		// ms
     protected static final boolean BIDIRECTIONAL_FLOW = true;
     protected static final int PROCESSOR_PRIORITY = 1;
+
+    /** Onos Services */
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected PacketService packetService;
+
+
 	/** We need to register with the provider to receive OF messages */
 	protected HashMap<String, Cdn> cdns;
 	protected HashMap<String, Proxy> proxies;
 	
+    private CdnPacketProcessor cdnPacketProcessor = new CdnPacketProcessor();
+
     @Activate
     public void activate() {
         // Initialize our data structures
         cdns = new HashMap<String, Cdn>();
         proxies = new HashMap<String, Proxy>();
 
+        // Install Processor
+        packetService.addProcessor(cdnPacketProcessor, PacketProcessor.director(PROCESSOR_PRIORITY));
     }
 
     @Deactivate
     public void deactivate() {
+        packetService.removeProcessor(cdnPacketProcessor);
     }
 
+    private class CdnPacketProcessor implements PacketProcessor {
 
+        @Override
+        public void process(PacketContext context) {
+            // Stop processing if the packet has been handled, since we
+            // can't do any more to it.
+            if (context.isHandled()) {
+                return;
+            }
+            InboundPacket pkt = context.inPacket();
+            Ethernet ethPkt = pkt.parsed();
 
+            if (ethPkt == null) {
+                return;
+            }
+
+            HostId srcId = HostId.hostId(ethPkt.getSourceMAC());
+            HostId dstId = HostId.hostId(ethPkt.getDestinationMAC());
+
+           // TODO: Implement actions here, probably take code from processPacketIn()
 
         }
+    }
 
 	/**
 	 * Process PACKET_IN.
