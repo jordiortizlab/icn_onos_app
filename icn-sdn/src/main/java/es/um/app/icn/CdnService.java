@@ -29,31 +29,44 @@ import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.felix.scr.annotations.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 
+@Component(immediate = true)
+@Service
 public class CdnService implements
 	ICdnService, ICdnPrivateService {
 
+    protected static final Logger log = LoggerFactory.getLogger(CdnService.class);
+    protected static final String IPV4_ETHERTYPE = "0x0800";
+    protected static final short PUNT_OFIDLE_TIMEOUT = 0;			// infinite
+    protected static final short PUNT_OFHARD_TIMEOUT = 0;			// infinite
+    protected static final short PUNT_OFPRIO = 15000;
+    protected static final short PATH_OFIDLE_TIMEOUT = 5;			// 5 sec
+    protected static final short PATH_OFHARD_TIMEOUT = 0;			// infinite
+    protected static final short PATH_OFPRIO = 30000;
+    protected static final int OFMESSAGE_DAMPER_CAPACITY = 10000;	// ms
+    protected static final int OFMESSAGE_DAMPER_TIMEOUT = 250;		// ms
+    protected static final boolean BIDIRECTIONAL_FLOW = true;
+    protected static final int PROCESSOR_PRIORITY = 1;
 	/** We need to register with the provider to receive OF messages */
 	protected HashMap<String, Cdn> cdns;
 	protected HashMap<String, Proxy> proxies;
 	
-	protected static final Logger log = LoggerFactory.getLogger(CdnService.class);
-	protected static final String IPV4_ETHERTYPE = "0x0800";
-	protected static final short PUNT_OFIDLE_TIMEOUT = 0;			// infinite
-	protected static final short PUNT_OFHARD_TIMEOUT = 0;			// infinite
-	protected static final short PUNT_OFPRIO = 15000;
-	protected static final short PATH_OFIDLE_TIMEOUT = 5;			// 5 sec
-	protected static final short PATH_OFHARD_TIMEOUT = 0;			// infinite
-	protected static final short PATH_OFPRIO = 30000;
-	protected static final int OFMESSAGE_DAMPER_CAPACITY = 10000;	// ms
-    protected static final int OFMESSAGE_DAMPER_TIMEOUT = 250;		// ms
-    protected static final boolean BIDIRECTIONAL_FLOW = true;
+    @Activate
+    public void activate() {
+        // Initialize our data structures
+        cdns = new HashMap<String, Cdn>();
+        proxies = new HashMap<String, Proxy>();
 
+    }
 
+    @Deactivate
+    public void deactivate() {
+    }
 
 
 
