@@ -23,7 +23,8 @@ package es.um.app.icn;
 import java.util.Collection;
 import java.util.HashMap;
 
-import net.floodlightcontroller.core.IOFSwitch;
+import org.onosproject.net.DeviceId;
+import org.onosproject.net.PortNumber;
 
 public class Cdn {
 
@@ -49,7 +50,7 @@ public class Cdn {
 	 * @return An appropriate cache to host the resource.
 	 */
 	protected Cache findCacheForNewResource(CdnService service,
-			String resourceName, IOFSwitch sw, short inPort) {
+											String resourceName, DeviceId sw, PortNumber inPort) {
 		return (Cache) service.findClosestMiddlebox(caches.values(), sw, inPort);
 	}
 	
@@ -63,7 +64,7 @@ public class Cdn {
 	 * @return A cache hosting the resource.
 	 */
 	protected Cache findCacheForExistingResource(CdnService service,
-			String resourceName, IOFSwitch sw, short inPort) {
+			String resourceName, DeviceId sw, PortNumber inPort) {
 		Resource resource = resources.get(resourceName);
 		if (resource == null)
 			return null;

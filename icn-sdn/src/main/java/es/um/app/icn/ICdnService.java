@@ -20,8 +20,6 @@
 
 package es.um.app.icn;
 
-import net.floodlightcontroller.core.module.IFloodlightService;
-
 import java.util.Collection;
 
 /**
@@ -30,7 +28,7 @@ import java.util.Collection;
  * 
  * @author Francisco J. Ros
  */
-public interface ICdnService extends IFloodlightService {
+public interface ICdnService {
 
 	public Collection<Cdn> retrieveCdns();
 	

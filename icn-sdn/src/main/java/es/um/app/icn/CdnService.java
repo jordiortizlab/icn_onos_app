@@ -21,22 +21,31 @@
 package es.um.app.icn;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.nio.ByteBuffer;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.felix.scr.annotations.*;
-import org.onlab.packet.Ethernet;
-import org.onosproject.net.Host;
-import org.onosproject.net.HostId;
-import org.onosproject.net.packet.InboundPacket;
-import org.onosproject.net.packet.PacketContext;
-import org.onosproject.net.packet.PacketProcessor;
-import org.onosproject.net.packet.PacketService;
+import org.onlab.packet.*;
+import org.onosproject.core.ApplicationId;
+import org.onosproject.core.CoreService;
+import org.onosproject.net.*;
+import org.onosproject.net.flow.DefaultTrafficSelector;
+import org.onosproject.net.flow.DefaultTrafficTreatment;
+import org.onosproject.net.flow.TrafficSelector;
+import org.onosproject.net.flow.TrafficTreatment;
+import org.onosproject.net.flowobjective.DefaultForwardingObjective;
+import org.onosproject.net.flowobjective.FlowObjectiveService;
+import org.onosproject.net.flowobjective.ForwardingObjective;
+import org.onosproject.net.host.HostService;
+import org.onosproject.net.intent.HostToHostIntent;
+import org.onosproject.net.intent.Intent;
+import org.onosproject.net.intent.IntentService;
+import org.onosproject.net.intent.Key;
+import org.onosproject.net.packet.*;
+import org.onosproject.net.topology.PathService;
+import org.onosproject.net.topology.TopologyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +54,7 @@ import org.slf4j.LoggerFactory;
 @Component(immediate = true)
 @Service
 public class CdnService implements
-	ICdnService, ICdnPrivateService {
+	ICdnService, ICdnPrivateService{
 
     protected static final Logger log = LoggerFactory.getLogger(CdnService.class);
     protected static final String IPV4_ETHERTYPE = "0x0800";
@@ -64,6 +73,27 @@ public class CdnService implements
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected PacketService packetService;
 
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected FlowObjectiveService flowObjectiveService;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected CoreService coreService;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected HostService hostService;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected TopologyService topologyService;
+
+	@Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+	protected IntentService intentService;
+
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected PathService pathService;
+
+
+    /** APPId */
+    private ApplicationId appId;
 
 	/** We need to register with the provider to receive OF messages */
 	protected HashMap<String, Cdn> cdns;
@@ -73,6 +103,9 @@ public class CdnService implements
 
     @Activate
     public void activate() {
+
+        appId = coreService.registerApplication("es.um.app.icn");
+
         // Initialize our data structures
         cdns = new HashMap<String, Cdn>();
         proxies = new HashMap<String, Proxy>();
@@ -89,12 +122,19 @@ public class CdnService implements
     private class CdnPacketProcessor implements PacketProcessor {
 
         @Override
+        /**
+         * If the payload is of interest to any of our CDNs, then let's decide the
+         * destination proxy and program the appropriate paths.
+         */
         public void process(PacketContext context) {
+            log.debug("Process PACKET_IN from switch {}", context.inPacket().receivedFrom().toString());
             // Stop processing if the packet has been handled, since we
             // can't do any more to it.
             if (context.isHandled()) {
                 return;
             }
+            DeviceId deviceId = context.inPacket().receivedFrom().deviceId();
+            PortNumber inport = context.inPacket().receivedFrom().port();
             InboundPacket pkt = context.inPacket();
             Ethernet ethPkt = pkt.parsed();
 
@@ -105,120 +145,166 @@ public class CdnService implements
             HostId srcId = HostId.hostId(ethPkt.getSourceMAC());
             HostId dstId = HostId.hostId(ethPkt.getDestinationMAC());
 
-           // TODO: Implement actions here, probably take code from processPacketIn()
+            // Check that src is a registered client
+            CdnFlow flow = new CdnFlow();
+            flow.setSmac(ethPkt.getSourceMAC().toString());
+            flow.setDmac(ethPkt.getDestinationMAC().toString());
+            if (findProxy(flow.getSmac()) != null || findCache(flow.getDmac()) != null) {
+                log.debug("Ignoring device {}: Not a client", flow.getSmac());
+                return;
+            }
+
+
+            // Given that this is a client-generated frame, let's add a flow
+            // with intermediate priority to punt HTTP traffic to the controller
+            // (in case it doesn't exist yet)
+            addIntermediatePriorityHttpFlowToController(deviceId, pkt);
+
+            // Nothing to do if we don't have any CDN or proxy
+            if (cdns.isEmpty() || proxies.isEmpty()) {
+                log.debug("Ignoring flow: No available CDNs and/or proxies");
+                return;
+            }
+
+            // Only continue processing if HTTP traffic is received
+            if (!(ethPkt.getEtherType() == Ethernet.TYPE_IPV4) && !(ethPkt.getEtherType() == Ethernet.TYPE_IPV6)) {
+                log.trace("Packet is not IPv4 neither v6, ignoring");
+                return;
+            }
+            if (ethPkt.getEtherType() == Ethernet.TYPE_IPV4) {
+                IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
+                if (ipv4Pkt.PROTOCOL_TCP != UtilCdn.HTTP_PORT) {
+                    log.trace("IPv4 Packet is not HTTP, ignoring");
+                    return;
+                }
+            }
+            if (ethPkt.getEtherType() == Ethernet.TYPE_IPV6) {
+                IPv6 ipv6Pkt = (IPv6) ethPkt.getPayload();
+                if (ipv6Pkt.PROTOCOL_TCP != UtilCdn.HTTP_PORT) {
+                    log.trace("IPv6 Packet is not HTTP, ignoring");
+                    return;
+                }
+            }
+
+            // Program path between client and closest proxy for HTTP traffic
+            Proxy proxy = (Proxy) findClosestMiddlebox(proxies.values(),
+                    deviceId, inport);
+            if (proxy == null) {
+                log.warn("Could not program path to proxy: No proxy available");
+                return;
+            }
+
+            Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(proxy.getMacaddr()));
+            if (hostsByMac.isEmpty()) {
+                log.error("No Host for proxy mac");
+                return;
+            }
+            if(hostsByMac.size() > 1)
+                log.warn("More than one host per mac, multiple links for same proxy? {}", proxy.getMacaddr());
+
+            Host proxyhost = null;
+            for (Host host : hostsByMac) {
+                proxyhost = host;
+                break;
+            }
+
+            // Using Intent for path creation
+            Intent toproxy = this.createIntentToProxy(srcId, proxyhost.id());
+            Intent fromproxy = this.createIntentFromProxy(proxyhost.id(), srcId);
+
+            // Take care of actual package
+            // Get first jump output
+            Set<Host> originByMac = hostService.getHostsByMac(srcId.mac());
+            Set<Host> destinationByMac = hostService.getHostsByMac(dstId.mac());
+            HostLocation locationorigin = null;
+            for (Host host : originByMac) {
+                locationorigin = host.location();
+            }
+            HostLocation locationdestination = null;
+            for (Host host : destinationByMac) {
+                locationdestination = host.location();
+            }
+
+            // TODO: What happens if multiple paths available, intents could use different path. We might want to ask the intent for its decission.
+            Set<Path> paths = pathService.getPaths(locationorigin.elementId(), locationdestination.elementId());
+            Link sourcelink = null;
+            for (Path path : paths) {
+                sourcelink = path.links().get(0);
+            }
+            TrafficTreatment.Builder builder =
+                    DefaultTrafficTreatment.builder();
+            builder.setOutput(sourcelink.src().port());
+            packetService.emit(new DefaultOutboundPacket(
+                    sourcelink.src().deviceId(),
+                    builder.build(),
+                    ByteBuffer.wrap(ethPkt.serialize())));
 
         }
-    }
 
-	/**
-	 * Process PACKET_IN.
-	 * 
-	 * If the payload is of interest to any of our CDNs, then let's decide the
-	 * destination proxy and program the appropriate paths.
-	 *  
-	 * @param sw
-	 * @param pktIn
-	 * @param ctx
-	 * @return STOP if handled by this module, CONTINUE otherwise.
-	 */
-	private Command processPacketIn(IOFSwitch sw, OFPacketIn pktIn, FloodlightContext ctx) {
-		Ethernet eth = IFloodlightProviderService.bcStore.get(
-				ctx, IFloodlightProviderService.CONTEXT_PI_PAYLOAD);
-		log.debug("Process PACKET_IN from switch {}", sw.getStringId());
-		CdnFlow flow = new CdnFlow();
-		flow.smac = eth.getSourceMAC().toString();
-		flow.dmac = eth.getDestinationMAC().toString();
-		
-		// Only handle PACKET_IN generated by a client
-		if (findProxy(flow.smac) != null || findCache(flow.smac) != null) {
-			log.debug("Ignoring device {}: Not a client", flow.smac);
-			return Command.CONTINUE;
-		}
-		
-		// Given that this is a client-generated frame, let's add a flow
-		// with intermediate priority to punt HTTP traffic to the controller
-		// (in case it doesn't exist yet)
-		if (pktIn.getReason() == OFPacketInReason.NO_MATCH) {
-			CdnFlow puntFlow = new CdnFlow();
-			puntFlow.smac = flow.smac;
-			puntFlow.dltype = IPV4_ETHERTYPE;
-			puntFlow.proto = Byte.toString(UtilCdn.IPPROTO_TCP);
-			puntFlow.dport = Short.toString(UtilCdn.HTTP_PORT);
-			log.debug("Program punt flow {} at switch {}",
-					puntFlow.toString(), sw.getStringId());
-			pushFlowMod(sw, puntFlow, pktIn.getInPort(), OFPort.OFPP_CONTROLLER.getValue(),
-					null, PUNT_OFPRIO, PUNT_OFIDLE_TIMEOUT, PUNT_OFHARD_TIMEOUT, 
-					ctx);
-		}
-		
-		// Nothing to do if we don't have any CDN or proxy
-		if (cdns.isEmpty() || proxies.isEmpty()) {
-			log.debug("Ignoring flow: No available CDNs and/or proxies");
-			return Command.CONTINUE;
-		}
-		
-		// Let other modules handle broadcast and multicast traffic and we
-		// focus on HTTP over IPv4 (TODO: IPv6 support)
-		IPacket pkt = eth.getPayload();
-		if (eth.isBroadcast() || eth.isMulticast()) {
-			log.debug("Ignoring broadcast/multicast traffic");
-			return Command.CONTINUE;
-		}
-		if (!(pkt instanceof IPv4)) {
-			log.debug("Ignoring non IPv4 traffic");
-			return Command.CONTINUE;
-		}
-		
-		IPv4 ipPkt = (IPv4) pkt;
-		flow.dltype = IPV4_ETHERTYPE;
-		flow.saddr = IPv4.fromIPv4Address(ipPkt.getSourceAddress());
-		flow.daddr = IPv4.fromIPv4Address(ipPkt.getDestinationAddress());
-		
-		// Check if the destination address belongs to a content provider's CDN
-		if (findProvidersFromAddress(ipPkt.getDestinationAddress()).isEmpty()) {
-			// For demo purposes, the provider might be already using a CDN
-			// (e.g. youtube, dailymotion). So the dst address might belong
-			// to a completely different network address. As a workaround,
-			// use the default network "0.0.0.0/0".
-			log.debug("Ignoring dst {}: Not a provider", flow.daddr);
-			return Command.CONTINUE;
-		}
-		
-		// Process HTTP traffic
-		flow.proto = Byte.toString(ipPkt.getProtocol());
-		IPacket payload = ipPkt.getPayload();
-		if (!(payload instanceof TCP)) {
-			log.debug("Ignoring non TCP traffic");
-			return Command.CONTINUE;
-		}
-		
-		TCP tcpPkt = (TCP) payload;
-		flow.dport = Short.toString(tcpPkt.getDestinationPort());
-		if (UtilCdn.HTTP_PORT != Short.valueOf(flow.dport)) {
-			log.debug("Ignoring non HTTP traffic");
-			return Command.CONTINUE;
-		}
-		
-		// Program path between client and closest proxy for HTTP traffic
-		Proxy proxy = (Proxy) findClosestMiddlebox(proxies.values(),
-				sw, pktIn.getInPort());
-		if (proxy == null) {
-			log.warn("Could not program path to proxy: No proxy available");
-			return Command.CONTINUE;
-		}
-		
-		short outPort = programPath(sw, flow, pktIn.getInPort(), proxy, ctx);
-		if (outPort != OFPort.OFPP_NONE.getValue()) {
-			log.info("Program path to proxy {} flow {}",
-					proxy.name, flow.toString());
-			pushPacketOut(sw, pkt, pktIn.getBufferId(),
-					pktIn.getInPort(), outPort, ctx);
-			return Command.STOP;
-		}
-		log.warn("Could not program path to proxy {} flow {}",
-				proxy.name, flow.toString());
-		return Command.CONTINUE;
-	}
+        private void addIntermediatePriorityHttpFlowToController(DeviceId deviceId, InboundPacket pkt)
+        {
+            TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
+
+            // Match IP/TCP/HTTP messages from srcmac
+            selectorBuilder.matchIPProtocol(UtilCdn.IPPROTO_TCP)
+                    .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
+                    .matchEthSrc(pkt.parsed().getSourceMAC());
+
+            // Send to Controller
+            TrafficTreatment treatment = DefaultTrafficTreatment.builder()
+                    .setOutput(PortNumber.CONTROLLER)
+                    .build();
+
+            ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
+                    .withSelector(selectorBuilder.build())
+                    .withTreatment(treatment)
+                    .withPriority(PUNT_OFPRIO)
+                    .withFlag(ForwardingObjective.Flag.VERSATILE) //TODO: Check if this should be Specific/Versatile
+                    .fromApp(appId)
+                    .makeTemporary(PUNT_OFIDLE_TIMEOUT)
+                    .add();
+            flowObjectiveService.forward(deviceId, forwardingObjective);
+        }
+
+        private Intent createIntentToProxy(HostId srcId, HostId dstId)
+        {
+            log.trace("Creating Host2HostIntent for Proxy {}", srcId.toString() + "->" + dstId.toString());
+            Key key = Key.of(srcId.toString() + "->" + dstId.toString(), appId);
+            TrafficSelector selector = DefaultTrafficSelector.builder().matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT)).build();
+            TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
+
+            HostToHostIntent hostIntent = HostToHostIntent.builder()
+                    .appId(appId)
+                    .key(key)
+                    .one(srcId)
+                    .two(dstId)
+                    .selector(selector)
+                    .treatment(treatment)
+                    .build();
+            intentService.submit(hostIntent);
+            return hostIntent;
+        }
+
+        private Intent createIntentFromProxy(HostId srcId, HostId dstId)
+        {
+            log.trace("Creating Host2HostIntent for Proxy {}", srcId.toString() + "->" + dstId.toString());
+            Key key = Key.of(srcId.toString() + "->" + dstId.toString(), appId);
+            TrafficSelector selector = DefaultTrafficSelector.builder().matchTcpSrc(TpPort.tpPort(UtilCdn.HTTP_PORT)).build();
+            TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
+
+            HostToHostIntent hostIntent = HostToHostIntent.builder()
+                    .appId(appId)
+                    .key(key)
+                    .one(srcId)
+                    .two(dstId)
+                    .selector(selector)
+                    .treatment(treatment)
+                    .build();
+            intentService.submit(hostIntent);
+            return hostIntent;
+        }
+
+    }
 	
 	/**
 	 * Program required flows when a proxy informs that a resource is being
@@ -230,12 +316,21 @@ public class CdnService implements
 				new Object[] {req.proxy, req.hostname, req.flow.toString()} );
 		
 		// Get proxy's attachment points
-		Collection<SwitchPort> attachPoints = getAttachmentPoints(req.proxy);
-		if (attachPoints.isEmpty()) {
-			log.warn("No attachment point for proxy {}", req.proxy);
-			return;
-		}
-		
+        Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(req.getProxy()));
+        if (hostsByMac.size() != 1)
+        {
+            log.warn("Unexpected number of hosts for the same mac {} : {}", req.getProxy(), hostsByMac.size());
+        }
+        Collection<HostLocation> proxylocations = new LinkedList<>();
+        for (Host host : hostsByMac) {
+            proxylocations.add(host.location());
+        }
+        if (proxylocations.size() == 0)
+        {
+            log.warn("No attachment point for proxy {}", req.getProxy());
+            return;
+        }
+
 		// Get the providers related to this request (if any)
 		Collection<Provider> providers =
 			findProvidersFromAddress(IPv4.toIPv4Address(req.flow.daddr));
@@ -278,8 +373,9 @@ public class CdnService implements
 					if (match) {
 						Resource resource = cdn.retrieveResource(resourceName);
 						Cache cache = null;
-						IOFSwitch proxySwitch = null;
-						short proxyPort = 0;
+                        HostLocation location = null;
+                        DeviceId deviceId = null;
+                        PortNumber portNumber = null;
 						boolean foundCache = false;
 						if (resource == null) {
 							// Resource requested for the first time, find a
@@ -288,13 +384,12 @@ public class CdnService implements
 							resource.id = UtilCdn.resourceId(cdn.name, resourceName);
 							resource.name = resourceName;
 							resource.requests = 1;
-							for (SwitchPort attachPoint : attachPoints) {
-								long proxyDpid = attachPoint.getSwitchDPID();
-						        proxySwitch = ofProvider.getSwitch(proxyDpid);
-						        proxyPort = (short) attachPoint.getPort();
-						        
+                            for (HostLocation proxylocation : proxylocations) {
+                                location = proxylocation;
+                                deviceId= proxylocation.deviceId();
+
 						        cache = cdn.findCacheForNewResource(this,
-						        		resourceName, proxySwitch, proxyPort);
+						        		resourceName, deviceId, portNumber);
 								if (cache == null) {
 									log.warn("No cache in CDN {} for new resource {}",
 											cdn.name, resourceName);
@@ -315,13 +410,13 @@ public class CdnService implements
 							// Existing resource, find the closest cache that
 							// hosts the content
 							resource.requests += 1;
-							for (SwitchPort attachPoint : attachPoints) {
-								long proxyDpid = attachPoint.getSwitchDPID();
-						        proxySwitch = ofProvider.getSwitch(proxyDpid);
-						        proxyPort = (short) attachPoint.getPort();
+                            for (HostLocation proxylocation : proxylocations) {
+                                location = proxylocation;
+                                deviceId = proxylocation.deviceId();
+                                portNumber = proxylocation.port();
 						        
 						        cache = cdn.findCacheForExistingResource(this,
-						        		resourceName, proxySwitch, proxyPort);
+						        		resourceName, deviceId, portNumber);
 						        if (cache == null) {
 						        	log.warn("No cache in CDN {} for existing resource {}",
 											cdn.name, resourceName);
@@ -341,9 +436,9 @@ public class CdnService implements
 						if (foundCache) {
 							log.info("Program path to cache {} flow {}",
 									cache.name, req.flow.toString());
-							programPath(proxySwitch, req.flow, proxyPort, cache,
-									new FloodlightContext());
-						}
+                            HostToHostIntent hostToHostIntent = programPath(location, cache);
+                            log.info("Created intent {}", hostToHostIntent.toString());
+                        }
 						return;
 					}
 				}
@@ -354,155 +449,39 @@ public class CdnService implements
 	/**
 	 * Compute route from an input switch to a middlebox's switch, and issue
 	 * corresponding FlowMod messages for the given flow.
-	 * @param sw Input switch.
-	 * @param inPort Input port.
-	 * @param flow Flow to program.
+	 * @param origin Input location
 	 * @param mbox Middlebox where the flow is directed.
-	 * @param ctx Floodlight context.
 	 * @return Ouput port that must be used by the input switch.
 	 */
-	private short programPath(IOFSwitch sw, CdnFlow flow, short inPort, IMiddlebox mbox,
-			FloodlightContext ctx) {
-		long dpid = sw.getId();
-		
-		Collection<SwitchPort> attachPoints = getAttachmentPoints(mbox.getMacaddr());
-		if (attachPoints.isEmpty())
-			return OFPort.OFPP_NONE.getValue();
-        
-        for (SwitchPort attachPoint: attachPoints) {
-        	long dstDpid = attachPoint.getSwitchDPID();
-            short dstPort = (short) attachPoint.getPort();
-            
-        	// Compute forward path from an input switch to the middlebox's switch
-        	Route route = routingEngine.getRoute(dpid, inPort, dstDpid, dstPort, 0);
-        	if (route == null) {
-        		log.debug("No route from {} to {}",
-        				HexString.toHexString(dpid),
-        				HexString.toHexString(dstDpid));
-        		continue;
-        	}
-        	// Issue FLOW_MOD commands to all switches in the path
-        	pushPathFlowMod(route, sw, flow,
-        			PATH_OFPRIO, PATH_OFIDLE_TIMEOUT, PATH_OFHARD_TIMEOUT,
-        			mbox, BIDIRECTIONAL_FLOW, ctx);
-        	
-        	return route.getPath().get(1).getPortId();
+	private HostToHostIntent programPath(HostLocation origin, IMiddlebox mbox) {
+        log.trace("Creating Host2HostIntent for middlebox {} -> {}", origin.toString(), mbox.getLocation().toString());
+        Key key = Key.of(origin.toString() + "->" + mbox.toString(), appId);
+        TrafficSelector selector = DefaultTrafficSelector.builder().matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT)).build();
+        TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
+
+        Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(mbox.getMacaddr()));
+        if (hostsByMac.size() != 1)
+        {
+            log.error("Unexpected number of hosts for the same mac {}", mbox.getMacaddr());
+            return null;
         }
-        return OFPort.OFPP_NONE.getValue();
-	}
-	
-	/**
-	 * Send FlowMod message to set up the given flow.
-	 * @param sw Switch where the flow is to be installed.
-	 * @param flow Flow to install.
-	 * @param inPort Input port related to the flow.
-	 * @param outPort Output port to be used in the action.
-	 * @param dstMacToSet Unless null, rewrite dst mac address with this value.
-	 * @param prio Priority for the flow.
-	 * @param idleTimeout Idle timeout for the flow.
-	 * @param hardTimeout Hard timeout for the flow.
-	 * @param ctx Floodlight context.
-	 */
-	private void pushFlowMod(IOFSwitch sw, CdnFlow flow,
-			short inPort, short outPort, String dstMacToSet, short prio,
-			short idleTimeout, short hardTimeout,
-			FloodlightContext ctx) {
-		long dpid = sw.getId();
-		
-		OFFlowMod fm = (OFFlowMod) ofProvider.getOFMessageFactory()
-				.getMessage(OFType.FLOW_MOD);
-		fm.setIdleTimeout(idleTimeout);
-		fm.setHardTimeout(hardTimeout);
-		fm.setBufferId(OFPacketOut.BUFFER_ID_NONE);
-		fm.setCommand((short) 0);
-		fm.setFlags((short) 0);
-		fm.setOutPort(OFPort.OFPP_NONE.getValue());
-		fm.setCookie((long) 0); // NOTE: set cookie?
-		fm.setPriority(prio);
-		
-		String swString = HexString.toHexString(dpid);
-		String matchString = buildFlowMatchString(flow, inPort);
-		String actionString = buildFlowActionString(outPort, dstMacToSet);
-		
-		StaticFlowEntries.parseActionString(fm, actionString, log);
-        OFMatch match = new OFMatch();
-        try {
-        	match.fromString(matchString);
-        } catch (IllegalArgumentException e) {
-        	log.warn("Ignoring flow entry in switch {}: {}",
-        			swString, matchString);
+        Host mboxhost = null;
+        for (Host host : hostsByMac) {
+            mboxhost = host;
         }
-        fm.setMatch(match);
-        try {
-			messageDamper.write(sw, fm, ctx, true);
-			counterStore.updatePktOutFMCounterStoreLocal(sw, fm);
-		} catch (IOException e) {
-			log.error("Cannot send FLOW_MOD: ", e);
-		}
-	}
-	
-	/**
-	 * Send FlowMod messages to program the given route.
-	 * @param route Route to program.
-	 * @param flow Match fields.
-	 * @param sw Switch attached to the client.
-	 * @param prio Priority for the flow.
-	 * @param idleTimeout Idle timeout for the flow.
-	 * @param hardTimeout Hard timeout for the flow.
-	 * @param mbox Middlebox where flow is directed, mac address is overwritten.
-	 * @param isBidirectional True if an appropriate reverse flow is to be pushed.
-	 * @param ctx Floodlight context.
-	 */
-	private void pushPathFlowMod(Route route, IOFSwitch sw, CdnFlow flow,
-			short prio, short idleTimeout, short hardTimeout,
-			IMiddlebox mbox, boolean isBidirectional, FloodlightContext ctx) {
-		long dpid = sw.getId();
-		
-		List<NodePortTuple> path = route.getPath();
-		if (path.size() == 0)
-			return;
-		
-		// The flow to be installed at the edge is given, but at the core
-		// it's only based on dst mac address (that of the middlebox)
-		CdnFlow flowNxtHops = new CdnFlow();
-		flowNxtHops.dmac = mbox.getMacaddr();
-		
-		// Issue FLOW_MODs in path reverse order
-		for (int i = path.size() - 2; i >= 0; i -= 2) {
-			long currentSwDpid = path.get(i).getNodeId();
-			IOFSwitch currentSwitch = ofProvider.getSwitch(currentSwDpid);
-			
-			if (currentSwDpid == dpid)
-				pushFlowMod(currentSwitch, flow,
-						path.get(i).getPortId(), path.get(i+1).getPortId(),
-						mbox.getMacaddr(), prio, idleTimeout, hardTimeout, ctx);
-			else
-				pushFlowMod(currentSwitch, flowNxtHops,
-						path.get(i).getPortId(), path.get(i+1).getPortId(),
-						null, prio, idleTimeout, hardTimeout, ctx);
-		}
-		
-		if (isBidirectional) {
-			// The reverse flow to be installed at the edge can be computed,
-			// but at the core it's only based on dst mac address
-			CdnFlow revFlowNxtHops = new CdnFlow();
-			revFlowNxtHops.dmac = flow.smac;
-			
-			// Issue FLOW_MODs in path reverse order
-			for (int i = 1; i < path.size(); i += 2) {
-				long currentSwDpid = path.get(i).getNodeId();
-				IOFSwitch currentSwitch = ofProvider.getSwitch(currentSwDpid);
-				
-				if (i == path.size() - 1)
-					pushFlowMod(currentSwitch, reverseFlow(flow),
-							path.get(i).getPortId(), path.get(i-1).getPortId(),
-							flow.smac, prio, idleTimeout, hardTimeout, ctx);
-				else
-					pushFlowMod(currentSwitch, revFlowNxtHops,
-							path.get(i).getPortId(), path.get(i-1).getPortId(),
-							null, prio, idleTimeout, hardTimeout, ctx);
-			}
-		}
+
+
+
+        HostToHostIntent hostIntent = HostToHostIntent.builder()
+                .appId(appId)
+                .key(key)
+                .one(origin.hostId())
+                .two(mboxhost.id())
+                .selector(selector)
+                .treatment(treatment)
+                .build();
+        intentService.submit(hostIntent);
+        return hostIntent;
 	}
 	
 	private CdnFlow reverseFlow(CdnFlow flow) {
@@ -521,131 +500,6 @@ public class CdnService implements
     		reverseFlow.sport = flow.dport;
     	
     	return reverseFlow;
-	}
-	
-	@SuppressWarnings("unused")
-	private String buildFlowEntryName(CdnFlow flow, long sw, String mboxMacAddress) {
-		StringBuilder entryName = new StringBuilder();
-		entryName.append("switch-" + sw);
-		entryName.append("-mbox-" + mboxMacAddress);
-		if (flow.smac != null)
-			entryName.append("-smac-" + flow.smac);
-		if (flow.dmac != null)
-			entryName.append("-dmac-" + flow.dmac);
-		if (flow.dltype != null)
-			entryName.append("-dltype-" + flow.dltype);
-		if (flow.saddr != null)
-			entryName.append("-saddr-" + flow.saddr);
-		if (flow.daddr != null)
-			entryName.append("-daddr-" + flow.daddr);
-		if (flow.proto != null)
-			entryName.append("-proto-" + flow.proto);
-		if (flow.sport != null)
-			entryName.append("-sport-" + flow.sport);
-		if (flow.dport != null)
-			entryName.append("-dport-" + flow.dport);
-		return entryName.toString();
-	}
-	
-	private String buildFlowMatchString(CdnFlow flow, short inPort) {
-		StringBuilder matchString = new StringBuilder();
-		if (flow.smac != null)
-			matchString.append("dl_src=" + flow.smac + ",");
-		if (flow.dmac != null)
-			matchString.append("dl_dst=" + flow.dmac + ",");
-		if (flow.dltype != null)
-			matchString.append("dl_type=" + flow.dltype + ",");
-		if (flow.saddr != null)
-			matchString.append("nw_src=" + flow.saddr + ",");
-		if (flow.daddr != null)
-			matchString.append("nw_dst=" + flow.daddr + ",");
-		if (flow.proto != null)
-			matchString.append("nw_proto=" + flow.proto + ",");
-		if (flow.sport != null)
-			matchString.append("tp_src=" + flow.sport + ",");
-		if (flow.dport != null)
-			matchString.append("tp_dst=" + flow.dport + ",");
-		matchString.append("in_port=" + inPort);
-		return matchString.toString();
-	}
-	
-	private String buildFlowActionString(short outPort, String dstMacToSet) {
-		StringBuilder actionString = new StringBuilder();
-		if (dstMacToSet != null)
-			actionString.append("set-dst-mac=" + MACAddress.valueOf(dstMacToSet) + ",");
-		if (outPort == OFPort.OFPP_CONTROLLER.getValue())
-			actionString.append("output=controller");
-		else
-			actionString.append("output=" + outPort);
-		
-		return actionString.toString();
-	}
-	
-	/**
-	 * Send PacketOut.
-	 * @param sw Switch to send the PacketOut.
-	 * @param pkt Packet to send, can be null if bufferId != OFPacketOut.BUFFER_ID_NONE.
-	 * @param bufferId Identifier of the buffered packet at the switch.
-	 * @param inPort Input port where the packet was received.
-	 * @param outPort Output port where the packet must be sent.
-	 * @param ctx Floodlight context.
-	 */
-	private void pushPacketOut(IOFSwitch sw, IPacket pkt, int bufferId,
-			short inPort, short outPort, FloodlightContext ctx) {
-		log.debug("PACKET_OUT switch={} in_port={} out_port={}",
-				new Object[] { sw.getStringId(), inPort, outPort } );
-		
-		OFPacketOut pktOut = (OFPacketOut) ofProvider.getOFMessageFactory()
-				.getMessage(OFType.PACKET_OUT);
-		
-		List<OFAction> actions = new ArrayList<OFAction>();
-		actions.add(new OFActionOutput(outPort));
-		pktOut.setActions(actions).setActionsLength((short) OFActionOutput.MINIMUM_LENGTH);
-		short pktOutLen = (short) (pktOut.getActionsLength() + OFPacketOut.MINIMUM_LENGTH);
-		
-		pktOut.setInPort(inPort);
-		pktOut.setBufferId(bufferId);
-		if (bufferId == OFPacketOut.BUFFER_ID_NONE) {
-			if (pkt == null) {
-				log.error("Cannot send PACKET_OUT (no buffer_id, null packet) "
-						+ "switch={} in_port={} out_port={}",
-						new Object[] { sw.getStringId(), inPort, outPort } );
-				return;
-			}
-			byte[] pktData = pkt.serialize();
-			pktOutLen += pktData.length;
-			pktOut.setPacketData(pktData);
-		}
-		pktOut.setLength(pktOutLen);
-		
-		try {
-			messageDamper.write(sw, pktOut, ctx, true);
-			counterStore.updatePktOutFMCounterStoreLocal(sw, pktOut);
-		} catch (IOException e) {
-			log.error("Cannot send PACKET_OUT: ", e);
-		}
-	}
-	
-	private Collection<SwitchPort> getAttachmentPoints(String macaddr) {
-		Collection<? extends IDevice> allDevices = deviceManager.getAllDevices();
-        IDevice dev = null;
-        for (IDevice d : allDevices) {
-        	if (d.getMACAddressString().equalsIgnoreCase(macaddr)) {
-        		dev = d;
-        		break;
-        	}
-        }
-        if (dev == null) {
-        	log.warn("No device found for {}", macaddr);
-        	return null;
-        }
-        
-        SwitchPort[] attachPoints = dev.getAttachmentPoints();
-        if (attachPoints.length == 0) {
-        	log.warn("No attachment point for {}", macaddr);
-        	return null;
-        }
-        return Arrays.asList(attachPoints);
 	}
 	
 	protected Collection<Provider> findProvidersFromAddress(int ip) {
@@ -668,29 +522,25 @@ public class CdnService implements
 	}
 	
 	protected IMiddlebox findClosestMiddlebox(Collection<? extends IMiddlebox> middleboxes,
-			IOFSwitch sw, short inPort) {
+                                              DeviceId sw, PortNumber inPort) {
 		IMiddlebox mbox = null;
 		int minLen = Integer.MAX_VALUE;
 		
 		for (IMiddlebox m: middleboxes) {
-			Collection<SwitchPort> attachPoints = getAttachmentPoints(m.getMacaddr());
-			if (attachPoints.isEmpty())
-				continue;
-			
-			for (SwitchPort attachPoint : attachPoints) {
-				long dstDpid = attachPoint.getSwitchDPID();
-				short dstPort = (short) attachPoint.getPort();
-				
-				Route route = routingEngine.getRoute(sw.getId(), inPort,
-						dstDpid, dstPort, 0);
-				if (route != null) {
-					int len = route.getPath().size();
-					if (len < minLen) {
-						minLen = len;
-						mbox = m;
-					}
-				}
-			}
+            Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(m.getMacaddr()));
+            if (hostsByMac.isEmpty())
+                continue;
+            if(hostsByMac.size() > 1)
+                log.warn("More than one host per mac, multiple links for same host? {}", m.getMacaddr());
+            for (Host host : hostsByMac) {
+                Set<Path> paths = topologyService.getPaths(topologyService.currentTopology(), sw, host.location().deviceId());
+                for (Path path : paths) {
+                    if(path.links().size() < minLen) { // TODO: Here we could take into account other metrics rather than number of links
+                        minLen = path.links().size();
+                        mbox = m;
+                    }
+                }
+            }
 		}
 		return mbox;
 	}

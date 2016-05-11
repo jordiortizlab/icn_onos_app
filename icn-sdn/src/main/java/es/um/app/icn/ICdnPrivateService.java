@@ -20,14 +20,12 @@
 
 package es.um.app.icn;
 
-import net.floodlightcontroller.core.module.IFloodlightService;
-
 /**
  * Private API exported to proxies.
  * 
  * @author Francisco J. Ros
  */
-public interface ICdnPrivateService extends IFloodlightService {
+public interface ICdnPrivateService {
 
 	/**
 	 * Handle resource requested as notified by a proxy.
