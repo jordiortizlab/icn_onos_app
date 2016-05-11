@@ -20,45 +20,73 @@
 
 package es.um.app.icn;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onosproject.rest.AbstractWebResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.Collection;
 
-import org.restlet.data.Status;
-import org.restlet.resource.Get;
-import org.restlet.resource.Post;
-import org.restlet.resource.ServerResource;
+@Path("Cdns")
+public class CdnsNorthbound extends AbstractWebResource {
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+    @GET
+    @Path("Retrieve")
+    @Produces(MediaType.APPLICATION_JSON)
+	public Response retrieve() {
+        ICdnService cdnService = getService(ICdnService.class);
+        Collection<Cdn> cdns = cdnService.retrieveCdns();
+        if (cdns == null)
+        {
+            log.error("No Cdn available");
+            return Response.status(Response.Status.NOT_FOUND).entity("No Cdn available").build();
+        }
+        ObjectNode result = new ObjectMapper().createObjectNode();
+        ArrayNode cdnsarray = result.putArray("cdns");
+        CdnCodec cc = new CdnCodec();
+        for (Cdn cdn : cdns) {
+            ObjectNode encodedcdn = cc.encode(cdn, this);
+            cdnsarray.add(encodedcdn);
+        }
+        return ok(result.toString()).build(); // 200 OK otherwise
+    }
 
-public class CdnsNorthbound extends ServerResource {
-
-	@Get("json")
-	public Collection<Cdn> retrieve() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		return service.retrieveCdns(); // 200 OK
-	}
-	
-	@Post("json")
-	public Cdn create(String body) {
-		Gson gson = new Gson();
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		try {
-			Cdn cdn = gson.fromJson(body, Cdn.class);
-			// 409 Conflict if duplicated name
-			if (service.retrieveCdn(cdn.name) != null) {
-				setStatus(Status.CLIENT_ERROR_CONFLICT);
-				return cdn;
-			}
-			// 201 Created if everything ok
-			setStatus(Status.SUCCESS_CREATED);
-			return service.createCdn(cdn);
-		} catch (JsonSyntaxException e) {
-			// 400 Bad Request if cannot parse Json body
-			setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-			return null;
-		}
-	}
+    @PUT
+    @Path("create")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+	public Response create(@QueryParam("newcdn") String jsonnewcdn) {
+        ICdnService cdnService = getService(ICdnService.class);
+        try {
+            ObjectNode cdnobject = (ObjectNode) new ObjectMapper().readTree(jsonnewcdn);
+            Cdn cdn = new CdnCodec().decode(cdnobject, this);
+            cdnService.createCdn(cdn);
+            ObjectNode result = new ObjectMapper().createObjectNode();
+            result.set("cdn", new CdnCodec().encode(cdn, this));
+            return ok(result.toString()).build(); // 200 OK otherwise
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            log.error("Unable to parse jsonized cdn in param updatedcdn when calling update method {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized cdn in param updatedcdn when calling update method").build();
+        } catch (IOException e) {
+            e.printStackTrace();
+            log.error("Unable to parse jsonized cdn in param updatedcdn when calling update method {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized cdn in param updatedcdn when calling update method").build();
+        } catch (UnsupportedOperationException | ClassCastException | NullPointerException | IllegalArgumentException e)
+        {
+            e.printStackTrace();
+            //The cdn already exists, abort
+            log.error("cdn probably already exists, cdn storage problem {}", e.toString());
+            return Response.status(Response.Status.CONFLICT).entity("cdn probably already exists, cdn storage problem").build();
+        }
+    }
 	
 }

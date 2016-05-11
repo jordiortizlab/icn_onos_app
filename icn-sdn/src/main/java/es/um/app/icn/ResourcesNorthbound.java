@@ -20,26 +20,48 @@
 
 package es.um.app.icn;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onosproject.rest.AbstractWebResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.util.Collection;
 
-import org.restlet.data.Status;
-import org.restlet.resource.Get;
-import org.restlet.resource.ServerResource;
+@Path("Resources")
+public class ResourcesNorthbound extends AbstractWebResource {
+	private final Logger log = LoggerFactory.getLogger(getClass());
 
-public class ResourcesNorthbound extends ServerResource {
-
-	@Get("json")
-	public Collection<Resource> retrieve() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
-		Cdn cdn = service.retrieveCdn(cdnName);
+	@GET
+	@Path("Retrieve")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Response retrieve(@QueryParam("name")String cdnName) {
+		ICdnService cdnService = getService(ICdnService.class);
+		Cdn cdn = cdnService.retrieveCdn(cdnName);
 		if (cdn == null) {
 			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
+			log.error("Unable to locate cdn {}", cdnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
 		}
-		return service.retrieveResources(cdn); // 200 OK
+		Collection<Resource> resources = cdn.retrieveResources();
+		if (resources == null) {
+			log.error("No resources in cdn {}", cdnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("No resources in cdn " + cdnName).build();
+		}
+		ObjectNode result = new ObjectMapper().createObjectNode();
+		ArrayNode resourcesarray = result.putArray("resources");
+		ResourceCodec cc = new ResourceCodec();
+		for (Resource resource : resources) {
+			ObjectNode encodedresource = cc.encode(resource, this);
+			resourcesarray.add(encodedresource);
+		}
+		return ok(result.toString()).build(); // 200 OK otherwise
 	}
-	
 }

@@ -20,59 +20,88 @@
 
 package es.um.app.icn;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onosproject.rest.AbstractWebResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.Collection;
 
-import org.restlet.data.Status;
-import org.restlet.resource.Get;
-import org.restlet.resource.Post;
-import org.restlet.resource.ServerResource;
+@Path("Providers")
+public class ProvidersNorthbound extends AbstractWebResource {
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
-
-public class ProvidersNorthbound extends ServerResource {
-
-	@Get("json")
-	public Collection<Provider> retrieve() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
-		Cdn cdn = service.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
-		}
-		return service.retrieveProviders(cdn); // 200 OK
+    @GET
+    @Path("Retrieve")
+    @Produces(MediaType.APPLICATION_JSON)
+	public Response retrieve(@QueryParam("name")String cdnName) {
+        ICdnService cdnService = getService(ICdnService.class);
+        Cdn cdn = cdnService.retrieveCdn(cdnName);
+        if (cdn == null) {
+            // 404 Not Found if there's no cdn with this name
+            log.error("Unable to locate cdn {}", cdnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+        }
+        Collection<Provider> providers = cdn.retrieveProviders();
+        if (providers == null) {
+            log.error("No providers in cdn {}", cdnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("No providers in cdn " + cdnName).build();
+        }
+        ObjectNode result = new ObjectMapper().createObjectNode();
+        ArrayNode providersarray = result.putArray("providers");
+        ProviderCodec cc = new ProviderCodec();
+        for (Provider provider : providers) {
+            ObjectNode encodedprovider = cc.encode(provider, this);
+            providersarray.add(encodedprovider);
+        }
+        return ok(result.toString()).build(); // 200 OK otherwise
 	}
-	
-	@Post("json")
-	public Provider create(String body) {
-		Gson gson = new Gson();
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		String cdnName = (String) getRequestAttributes().get("name");
-		Cdn cdn = service.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			setStatus(Status.CLIENT_ERROR_NOT_FOUND);
-			return null;
-		}
-		try {
-			Provider provider = gson.fromJson(body, Provider.class);
-			// 409 Conflict if duplicated name
-			if (service.retrieveProvider(cdn, provider.name) != null) {
-				setStatus(Status.CLIENT_ERROR_CONFLICT);
-				return provider;
-			}
-			// 201 Created if everything ok
-			setStatus(Status.SUCCESS_CREATED);
-			return service.createProvider(cdn, provider);
-		} catch (JsonSyntaxException e) {
-			// 400 Bad Request if cannot parse Json body
-			setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-			return null;
-		}
-	}
+
+    @PUT
+    @Path("create")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response create(@QueryParam("name")String cdnName, @QueryParam("newprovider") String jsonnewprovider) {
+        ICdnService cdnService = getService(ICdnService.class);
+        Cdn cdn = cdnService.retrieveCdn(cdnName);
+        if (cdn == null) {
+            // 404 Not Found if there's no cdn with this name
+            log.error("Unable to locate cdn {}", cdnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+        }
+        try {
+            ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(jsonnewprovider);
+            Provider newProvider = new ProviderCodec().decode(locationobject, this);
+
+            //Finally create the provider
+            cdnService.createProvider(cdn, newProvider);
+            ObjectNode result = new ObjectMapper().createObjectNode();
+            result.set("provider", new ProviderCodec().encode(newProvider, this));
+            return ok(result.toString()).build(); // 200 OK otherwise
+
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            log.error("Unable to parse jsonized provider in param updatedprovider when calling update method {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized provider in param updatedprovider when calling update method").build();
+        } catch (IOException e) {
+            e.printStackTrace();
+            log.error("Unable to parse jsonized provider in param updatedprovider when calling update method {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized provider in param updatedprovider when calling update method").build();
+        } catch (UnsupportedOperationException | ClassCastException | NullPointerException | IllegalArgumentException e)
+        {
+            e.printStackTrace();
+            //The provider already exists, abort
+            log.error("Provider probably already exists, provider storage problem {}", e.toString());
+            return Response.status(Response.Status.CONFLICT).entity("Provider probably already exists, provider storage problem").build();
+        }
+
+    }
 	
 }

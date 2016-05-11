@@ -20,45 +20,77 @@
 
 package es.um.app.icn;
 
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onosproject.rest.AbstractWebResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.Collection;
 
-import org.restlet.data.Status;
-import org.restlet.resource.Get;
-import org.restlet.resource.Post;
-import org.restlet.resource.ServerResource;
+@Path("Proxies")
+public class ProxiesNorthbound extends AbstractWebResource {
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
+    @GET
+    @Path("Retrieve")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response retrieve(@QueryParam("name")String cdnName) {
+        ICdnService cdnService = getService(ICdnService.class);
+        Collection<Proxy> proxys = cdnService.retrieveProxies();
+        if (proxys == null) {
+            log.error("No proxys in cdn {}", cdnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("No proxys in cdn " + cdnName).build();
+        }
+        ObjectNode result = new ObjectMapper().createObjectNode();
+        ArrayNode proxysarray = result.putArray("proxys");
+        ProxyCodec cc = new ProxyCodec();
+        for (Proxy proxy : proxys) {
+            ObjectNode encodedproxy = cc.encode(proxy, this);
+            proxysarray.add(encodedproxy);
+        }
+        return ok(result.toString()).build(); // 200 OK otherwise
+    }
 
-public class ProxiesNorthbound extends ServerResource {
+    @PUT
+    @Path("create")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response create(@QueryParam("newproxy") String jsonnewproxy) {
+        ICdnService cdnService = getService(ICdnService.class);
+        try {
+            ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(jsonnewproxy);
+            Proxy newProxy = new ProxyCodec().decode(locationobject, this);
 
-	@Get("json")
-	public Collection<Proxy> retrieve() {
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		return service.retrieveProxies(); // 200 OK
-	}
-	
-	@Post("json")
-	public Proxy create(String body) {
-		Gson gson = new Gson();
-		ICdnService service = (ICdnService) getContext().getAttributes().
-				get(ICdnService.class.getCanonicalName());
-		try {
-			Proxy proxy = gson.fromJson(body, Proxy.class);
-			// 409 Conflict if duplicated name
-			if (service.retrieveProxy(proxy.name) != null) {
-				setStatus(Status.CLIENT_ERROR_CONFLICT);
-				return proxy;
-			}
-			// 201 Created if everything ok
-			setStatus(Status.SUCCESS_CREATED);
-			return service.createProxy(proxy);
-		} catch (JsonSyntaxException e) {
-			// 400 Bad Request if cannot parse Json body
-			setStatus(Status.CLIENT_ERROR_BAD_REQUEST);
-			return null;
-		}
-	}
-	
+            //Finally create the proxy
+            cdnService.createProxy(newProxy);
+            ObjectNode result = new ObjectMapper().createObjectNode();
+            result.set("proxy", new ProxyCodec().encode(newProxy, this));
+            return ok(result.toString()).build(); // 200 OK otherwise
+
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            log.error("Unable to parse jsonized proxy in param updatedproxy when calling update method {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized proxy in param updatedproxy when calling update method").build();
+        } catch (IOException e) {
+            e.printStackTrace();
+            log.error("Unable to parse jsonized proxy in param updatedproxy when calling update method {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized proxy in param updatedproxy when calling update method").build();
+        } catch (UnsupportedOperationException | ClassCastException | NullPointerException | IllegalArgumentException e)
+        {
+            e.printStackTrace();
+            //The proxy already exists, abort
+            log.error("Proxy probably already exists, proxy storage problem {}", e.toString());
+            return Response.status(Response.Status.CONFLICT).entity("Proxy probably already exists, proxy storage problem").build();
+        }
+
+    }
+
 }
