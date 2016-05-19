@@ -34,6 +34,14 @@
         <onos.app.category>default</onos.app.category>
         <onos.app.url>http://www.um.es</onos.app.url>
         <onos.app.readme>ICN over SDN app from University of Murcia</onos.app.readme>
+
+        <web.context>/onos/icn</web.context>
+        <api.version>1.0.0</api.version>
+        <api.title>UM ICN over SDN API</api.title>
+        <api.description>
+            UM ICN over SDN API
+        </api.description>
+        <api.package>es.um</api.package>
     </properties>
 
     <dependencies>
@@ -64,6 +72,26 @@
             <classifier>tests</classifier>
         </dependency>
 
+	        <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>onos-rest</artifactId>
+            <version>${onos.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.onosproject</groupId>
+            <artifactId>onlab-rest</artifactId>
+            <version>${onos.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+	<dependency>
+	  <groupId>org.glassfish.jersey.containers</groupId>
+	  <artifactId>jersey-container-servlet</artifactId>
+	  <version>2.22.2</version>
+	  <scope>provided</scope>
+	</dependency>
+	
         <dependency>
             <groupId>org.apache.felix</groupId>
             <artifactId>org.apache.felix.scr.annotations</artifactId>
@@ -79,6 +107,22 @@
                 <artifactId>maven-bundle-plugin</artifactId>
                 <version>3.0.1</version>
                 <extensions>true</extensions>
+		                <configuration>
+                    <instructions>
+                        <_wab>src/main/webapp/</_wab>
+                        <Include-Resource>
+                            WEB-INF/classes/apidoc/swagger.json=target/swagger.json,
+                            {maven-resources}
+                        </Include-Resource>
+                        <Bundle-SymbolicName>
+                            ${project.groupId}.${project.artifactId}
+                        </Bundle-SymbolicName>
+                        <Import-Package>
+                            *,org.glassfish.jersey.servlet
+                        </Import-Package>
+                        <Web-ContextPath>${web.context}</Web-ContextPath>
+                    </instructions>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
