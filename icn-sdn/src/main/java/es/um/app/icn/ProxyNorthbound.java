@@ -32,11 +32,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 
+@Path("proxy")
 public class ProxyNorthbound extends AbstractWebResource {
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	@GET
-	@Path("Retrieve")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response retrieve(@QueryParam("pname")String name) {
 		ICdnService service = getService(ICdnService.class);
@@ -52,7 +52,6 @@ public class ProxyNorthbound extends AbstractWebResource {
 	}
 
 	@PUT
-	@Path("update")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response update(@QueryParam("name")String name, @QueryParam("updatedcache") String jsonupdatedproxy) {
@@ -81,7 +80,6 @@ public class ProxyNorthbound extends AbstractWebResource {
 	}
 
     @DELETE
-    @Path("remove")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
 	public Response remove(@QueryParam("name")String name) {

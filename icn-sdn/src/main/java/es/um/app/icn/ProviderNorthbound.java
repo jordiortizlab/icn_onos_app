@@ -32,11 +32,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 
+@Path("provider")
 public class ProviderNorthbound extends AbstractWebResource {
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	@GET
-	@Path("Retrieve")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response retrieve(@QueryParam("name")String cdnName, @QueryParam("pname")String provName) {
 		ICdnService service = getService(ICdnService.class);
@@ -58,7 +58,6 @@ public class ProviderNorthbound extends AbstractWebResource {
 	}
 
 	@PUT
-	@Path("update")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response update(@QueryParam("name")String cdnName, @QueryParam("pname")String provName, @QueryParam("updatedprovider") String jsonupdatedprovider) {
@@ -99,7 +98,6 @@ public class ProviderNorthbound extends AbstractWebResource {
 	}
 
 	@DELETE
-	@Path("remove")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response remove(@QueryParam("name")String cdnName, @QueryParam("pname")String provName) {

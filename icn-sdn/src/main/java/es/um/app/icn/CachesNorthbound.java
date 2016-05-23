@@ -34,12 +34,11 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Collection;
 
-@Path("Caches")
+@Path("caches")
 public class CachesNorthbound extends AbstractWebResource {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     @GET
-    @Path("Retrieve")
     @Produces(MediaType.APPLICATION_JSON)
     public Response retrieve(@QueryParam("name")String cdnName) {
         ICdnService cdnService = getService(ICdnService.class);
@@ -65,7 +64,6 @@ public class CachesNorthbound extends AbstractWebResource {
 	}
 
     @PUT
-    @Path("create")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
 	public Response create(@QueryParam("name")String cdnName, @QueryParam("newcache") String jsonnewcache) {

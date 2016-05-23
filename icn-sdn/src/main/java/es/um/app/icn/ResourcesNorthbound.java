@@ -35,12 +35,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.Collection;
 
-@Path("Resources")
+@Path("resources")
 public class ResourcesNorthbound extends AbstractWebResource {
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	@GET
-	@Path("Retrieve")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response retrieve(@QueryParam("name")String cdnName) {
 		ICdnService cdnService = getService(ICdnService.class);

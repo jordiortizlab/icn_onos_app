@@ -36,12 +36,11 @@ import java.io.IOException;
  * Some documentation about javax.ws.rs https://docs.oracle.com/javaee/6/api/javax/ws/rs/package-summary.html
  */
 
-@Path("Cache")
+@Path("cache")
 public class CacheNorthbound extends AbstractWebResource {
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	@GET
-	@Path("Retrieve")
     @Produces(MediaType.APPLICATION_JSON)
 	public Response retrieve(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName) {
 		ICdnService cdnService = getService(ICdnService.class);
@@ -63,7 +62,6 @@ public class CacheNorthbound extends AbstractWebResource {
 	}
 
     @PUT
-    @Path("update")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
 	public Response update(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName, @QueryParam("updatedcache") String jsonupdatedcache) {
@@ -103,7 +101,6 @@ public class CacheNorthbound extends AbstractWebResource {
 	}
 
     @DELETE
-    @Path("remove")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response remove(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName) {

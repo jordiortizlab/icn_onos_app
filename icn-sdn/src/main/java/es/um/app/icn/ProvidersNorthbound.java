@@ -34,7 +34,7 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Collection;
 
-@Path("Providers")
+@Path("providers")
 public class ProvidersNorthbound extends AbstractWebResource {
     private final Logger log = LoggerFactory.getLogger(getClass());
 

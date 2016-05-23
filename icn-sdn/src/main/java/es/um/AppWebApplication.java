@@ -16,17 +16,29 @@
 
 package es.um;
 
-import es.um.app.icn.CdnsNorthbound;
+import es.um.app.icn.*;
 import org.onlab.rest.AbstractWebApplication;
 
 import java.util.Set;
 
 /**
- * Sample REST API web application.
+ * ICN over SDN REST API web application.
  */
 public class AppWebApplication extends AbstractWebApplication {
     @Override
     public Set<Class<?>> getClasses() {
-        return getClasses(CdnsNorthbound.class);
+        return getClasses(
+                CacheNorthbound.class,
+                CachesNorthbound.class,
+                CdnNorthbound.class,
+                CdnsNorthbound.class,
+                ProviderNorthbound.class,
+                ProvidersNorthbound.class,
+                ProxiesNorthbound.class,
+                ProxyNorthbound.class,
+                ProxyRequestNorthbound.class,
+                ResourceNorthbound.class,
+                ResourcesNorthbound.class
+                );
     }
 }

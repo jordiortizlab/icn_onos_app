@@ -33,11 +33,11 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+@Path("resource")
 public class ResourceNorthbound extends AbstractWebResource {
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
 	@GET
-	@Path("Retrieve")
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response retrieve(@QueryParam("name")String cdnName, @QueryParam("id")String id) {
 		ICdnService service = getService(ICdnService.class);
