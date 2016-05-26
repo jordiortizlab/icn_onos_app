@@ -60,7 +60,6 @@ public class ProxyNorthbound extends AbstractWebResource {
 		if (proxy == null) {
 			// 404 Not Found if there's no proxy with this name
 			log.error("Unable to locate proxy {}", name);
-			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate proxy " + name).build();
 		}
         try {
             ObjectNode proxyobject = (ObjectNode) new ObjectMapper().readTree(jsonupdatedproxy);
