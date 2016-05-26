@@ -32,6 +32,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 
 @Path("providers")
@@ -68,7 +69,7 @@ public class ProvidersNorthbound extends AbstractWebResource {
     @Path("create")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response create(@QueryParam("name")String cdnName, @QueryParam("newprovider") String jsonnewprovider) {
+    public Response create(@QueryParam("name")String cdnName, InputStream stream) {
         ICdnService cdnService = getService(ICdnService.class);
         Cdn cdn = cdnService.retrieveCdn(cdnName);
         if (cdn == null) {
@@ -77,7 +78,7 @@ public class ProvidersNorthbound extends AbstractWebResource {
             return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
         }
         try {
-            ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(jsonnewprovider);
+            ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
             Provider newProvider = new ProviderCodec().decode(locationobject, this);
 
             //Finally create the provider

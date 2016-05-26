@@ -32,6 +32,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 
 @Path("caches")
@@ -63,10 +64,10 @@ public class CachesNorthbound extends AbstractWebResource {
         return ok(result.toString()).build(); // 200 OK otherwise
 	}
 
-    @PUT
+    @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-	public Response create(@QueryParam("name")String cdnName, @QueryParam("newcache") String jsonnewcache) {
+	public Response create(@QueryParam("name")String cdnName, InputStream stream) {
         ICdnService cdnService = getService(ICdnService.class);
         Cdn cdn = cdnService.retrieveCdn(cdnName);
         if (cdn == null) {
@@ -75,7 +76,7 @@ public class CachesNorthbound extends AbstractWebResource {
             return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
         }
         try {
-            ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(jsonnewcache);
+            ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
             Cache newCache = new CacheCodec().decode(locationobject, this);
 
             //Finally create the cache

@@ -31,6 +31,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Some documentation about javax.ws.rs https://docs.oracle.com/javaee/6/api/javax/ws/rs/package-summary.html
@@ -61,10 +62,10 @@ public class CacheNorthbound extends AbstractWebResource {
 		return ok(result.toString()).build(); // 200 OK otherwise
 	}
 
-    @PUT
+    @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-	public Response update(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName, @QueryParam("updatedcache") String jsonupdatedcache) {
+	public Response update(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName, InputStream stream) {
         ICdnService cdnService = getService(ICdnService.class);
         Cdn cdn = cdnService.retrieveCdn(cdnName);
         if (cdn == null) {
@@ -80,7 +81,7 @@ public class CacheNorthbound extends AbstractWebResource {
         }
 
         try {
-            ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(jsonupdatedcache);
+            ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
             Cache updatedCache = new CacheCodec().decode(locationobject, this);
             if (!cacheName.equals(updatedCache.name)) {
                 log.error("jsonized cache name and cname argument differ");

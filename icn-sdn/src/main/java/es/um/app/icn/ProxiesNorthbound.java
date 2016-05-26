@@ -33,6 +33,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 
 @Path("proxies")
@@ -58,13 +59,13 @@ public class ProxiesNorthbound extends AbstractWebResource {
         return ok(result.toString()).build(); // 200 OK otherwise
     }
 
-    @PUT
+    @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response create(@QueryParam("newproxy") String jsonnewproxy) {
+    public Response create(InputStream stream) {
         ICdnService cdnService = getService(ICdnService.class);
         try {
-            ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(jsonnewproxy);
+            ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
             Proxy newProxy = new ProxyCodec().decode(locationobject, this);
 
             //Finally create the proxy

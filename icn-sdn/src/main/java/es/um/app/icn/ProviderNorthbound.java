@@ -31,6 +31,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 
 @Path("provider")
 public class ProviderNorthbound extends AbstractWebResource {
@@ -57,10 +58,10 @@ public class ProviderNorthbound extends AbstractWebResource {
 		return ok(result.toString()).build(); // 200 OK otherwise
 	}
 
-	@PUT
+	@POST
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
-	public Response update(@QueryParam("name")String cdnName, @QueryParam("pname")String provName, @QueryParam("updatedprovider") String jsonupdatedprovider) {
+	public Response update(@QueryParam("name")String cdnName, @QueryParam("pname")String provName, InputStream stream) {
 		ICdnService service = getService(ICdnService.class);
 		Cdn cdn = service.retrieveCdn(cdnName);
 		if (cdn == null) {
@@ -76,7 +77,7 @@ public class ProviderNorthbound extends AbstractWebResource {
 		}
 
 		try {
-			ObjectNode providerobject = (ObjectNode) new ObjectMapper().readTree(jsonupdatedprovider);
+			ObjectNode providerobject = (ObjectNode) mapper().readTree(stream);
 			Provider updatedprovider = new ProviderCodec().decode(providerobject, this);
 			if (!provider.getName().equals(updatedprovider.getName()))
 			{

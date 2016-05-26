@@ -32,6 +32,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 
 @Path("cdns")
@@ -58,13 +59,13 @@ public class CdnsNorthbound extends AbstractWebResource {
         return ok(result.toString()).build(); // 200 OK otherwise
     }
 
-    @PUT
+    @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-	public Response create(@QueryParam("newcdn") String jsonnewcdn) {
+	public Response create(InputStream stream) {
         ICdnService cdnService = getService(ICdnService.class);
         try {
-            ObjectNode cdnobject = (ObjectNode) new ObjectMapper().readTree(jsonnewcdn);
+            ObjectNode cdnobject = (ObjectNode) mapper().readTree(stream);
             Cdn cdn = new CdnCodec().decode(cdnobject, this);
             cdnService.createCdn(cdn);
             ObjectNode result = new ObjectMapper().createObjectNode();

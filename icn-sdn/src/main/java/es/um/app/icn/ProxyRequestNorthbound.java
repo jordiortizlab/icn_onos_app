@@ -31,19 +31,20 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 
 @Path("proxyrequest")
 public class ProxyRequestNorthbound extends AbstractWebResource {
 	private final Logger log = LoggerFactory.getLogger(getClass());
 
-	@PUT
+	@POST
 	@Path("create")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
-	public Response create(@QueryParam("newproxyrequest") String newproxyrequest) {
+	public Response create(InputStream stream) {
 		ICdnPrivateService cdnService = getService(ICdnPrivateService.class);
 		try {
-			ObjectNode locationobject = (ObjectNode) new ObjectMapper().readTree(newproxyrequest);
+			ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
 			ProxyRequest newproxyreq = new ProxyRequestCodec().decode(locationobject, this);
             cdnService.processResourceRequest(newproxyreq);
 		} catch (JsonProcessingException e) {

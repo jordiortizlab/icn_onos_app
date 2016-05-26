@@ -31,6 +31,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 
 @Path("cdn")
 public class CdnNorthbound extends AbstractWebResource {
@@ -54,16 +55,15 @@ public class CdnNorthbound extends AbstractWebResource {
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-	public Response update(@QueryParam("name")String cdnName, @QueryParam("updatedcdn") String jsonupdatedcdn) {
+	public Response update(@QueryParam("name")String cdnName, InputStream stream) {
         ICdnService cdnService = getService(ICdnService.class);
         Cdn cdn = cdnService.retrieveCdn(cdnName);
         if (cdn == null) {
             // 404 Not Found if there's no cdn with this name
             log.error("Unable to locate cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
         }
         try {
-            ObjectNode cdnobject = (ObjectNode) new ObjectMapper().readTree(jsonupdatedcdn);
+            ObjectNode cdnobject = (ObjectNode) mapper().readTree(stream);
             Cdn updatedCdn = new CdnCodec().decode(cdnobject, this);
             if (!cdnName.equals(updatedCdn.getName())) {
                 log.error("jsonized cdn name and cdnName argument differ");
