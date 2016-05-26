@@ -31,6 +31,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.io.InputStream;
 
 @Path("proxy")
 public class ProxyNorthbound extends AbstractWebResource {
@@ -51,10 +52,10 @@ public class ProxyNorthbound extends AbstractWebResource {
 		return ok(result.toString()).build(); // 200 OK otherwise
 	}
 
-	@PUT
+	@POST
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
-	public Response update(@QueryParam("name")String name, @QueryParam("updatedcache") String jsonupdatedproxy) {
+	public Response update(@QueryParam("name")String name, InputStream stream) {
 		ICdnService cdnService = getService(ICdnService.class);
 		Proxy proxy = cdnService.retrieveProxy(name);
 		if (proxy == null) {
@@ -62,14 +63,21 @@ public class ProxyNorthbound extends AbstractWebResource {
 			log.error("Unable to locate proxy {}", name);
 		}
         try {
-            ObjectNode proxyobject = (ObjectNode) new ObjectMapper().readTree(jsonupdatedproxy);
+            ObjectNode proxyobject = (ObjectNode) mapper().readTree(stream);
             Proxy updatedProxy = new ProxyCodec().decode(proxyobject, this);
             if (!updatedProxy.getName().equals(name)){
                 log.error("JSonized proxy name differs from name argument when updating");
                 return Response.status(Response.Status.NOT_FOUND).entity("JSonized proxy name differs from name argument when updating").build();
             }
-            // Finally update
-            cdnService.updateProxy(updatedProxy);
+            if (proxy != null) {
+                // update proxy
+                cdnService.updateProxy(updatedProxy);
+            }
+            else {
+                // We need to create a new proxy
+                cdnService.createProxy(updatedProxy);
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
             log.error("Unable to dejsonize proxy {}", e.toString());
