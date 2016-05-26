@@ -33,14 +33,20 @@ public class ProxyCodec extends JsonCodec<Proxy> {
                 .put(IPADDR_FIELD, proxy.getIpaddr())
                 .put(MACADDR_FIELD, proxy.getMacaddr())
                 .put(TYPE_FIELD, proxy.getType());
-        ObjectNode locationobject = new LocationCodec().encode(proxy.getLocation(), context);
-        try {
-            JsonNode locationjson = context.mapper().readTree(locationobject.toString());
-            result.set(LOCATION_FIELD, locationjson);
-        } catch (IOException e) {
-            e.printStackTrace();
-            log.error("Unable to jsonize the proxy Location");
-            return null;
+        if (proxy.getLocation() != null) {
+            ObjectNode locationobject = new LocationCodec().encode(proxy.getLocation(), context);
+            try {
+                JsonNode locationjson = context.mapper().readTree(locationobject.toString());
+                result.set(LOCATION_FIELD, locationjson);
+            } catch (IOException e) {
+                e.printStackTrace();
+                log.error("Unable to jsonize the proxy Location");
+                return null;
+            }
+        }
+        else
+        {
+            result.set(LOCATION_FIELD, null);
         }
         return result;
     }
@@ -48,20 +54,22 @@ public class ProxyCodec extends JsonCodec<Proxy> {
     @Override
     public Proxy decode(ObjectNode json, CodecContext context) {
         Proxy proxy = new Proxy();
-        proxy.setName(json.get(NAME_FIELD).toString());
+        proxy.setName(json.get(NAME_FIELD).asText());
         proxy.setDescription(json.get(DESCRIPTION_FIELD).asText());
-        proxy.setIpaddr(json.get(IPADDR_FIELD).asText());
+        if(json.get(IPADDR_FIELD) != null)
+            proxy.setIpaddr(json.get(IPADDR_FIELD).asText());
         proxy.setMacaddr(json.get(MACADDR_FIELD).asText());
         proxy.setType(json.get(TYPE_FIELD).asText());
         JsonNode locationjson = json.get(LOCATION_FIELD);
-        try {
-            ObjectNode locationobject = (ObjectNode) context.mapper().readTree(locationjson.toString());
-            proxy.setLocation(new LocationCodec().decode(locationobject, context));
-        } catch (IOException e) {
-            log.error("Unable to dejsonize the proxy Location");
-            e.printStackTrace();
-            return null;
-        }
+        if (locationjson != null)
+            try {
+                ObjectNode locationobject = (ObjectNode) context.mapper().readTree(locationjson.toString());
+                proxy.setLocation(new LocationCodec().decode(locationobject, context));
+            } catch (IOException e) {
+                log.error("Unable to dejsonize the proxy Location");
+                e.printStackTrace();
+                return null;
+            }
 
         return proxy;
 
