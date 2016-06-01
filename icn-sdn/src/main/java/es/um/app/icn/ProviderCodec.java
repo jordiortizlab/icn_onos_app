@@ -38,8 +38,10 @@ public class ProviderCodec extends JsonCodec<Provider> {
         p.setName(json.get(NAME_FIELD).asText());
         p.setDescription(json.get(DESCRIPTION_FIELD).asText());
         p.setNetwork(json.get(NETWORK_FIELD).asText());
-        p.setUripattern(json.get(URIPATTERN_FIELD).asText());
-        p.setHostpattern(json.get(HOSTPATTERN_FIELD).asText());
+        if (json.get(URIPATTERN_FIELD) != null)
+            p.setUripattern(json.get(URIPATTERN_FIELD).asText());
+        if (json.get(HOSTPATTERN_FIELD) != null)
+            p.setHostpattern(json.get(HOSTPATTERN_FIELD).asText());
         return p;
     }
 }
