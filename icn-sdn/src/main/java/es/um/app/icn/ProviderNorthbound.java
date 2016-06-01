@@ -73,19 +73,25 @@ public class ProviderNorthbound extends AbstractWebResource {
 		if (provider == null) {
 			// 404 Not Found if there's no provider with this name
 			log.error("Unable to locate provider {}", provName);
-			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate provider " + provName).build();
 		}
 
 		try {
 			ObjectNode providerobject = (ObjectNode) mapper().readTree(stream);
 			Provider updatedprovider = new ProviderCodec().decode(providerobject, this);
-			if (!provider.getName().equals(updatedprovider.getName()))
+			if (provider != null && !provider.getName().equals(updatedprovider.getName()))
 			{
 				log.error("JSonized provider name does not match pname");
 				return Response.status(Response.Status.NOT_FOUND).entity("JSonized provider name does not match pname").build();
 			}
-			//Finally update the provider
-			service.updateProvider(cdn, updatedprovider);
+			if (provider != null) {
+				//Finally update the provider
+				service.updateProvider(cdn, updatedprovider);
+			}
+			else
+			{
+				//Finally update the provider
+				service.createProvider(cdn, updatedprovider);
+			}
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 			log.error("Unable to parse jsonized provider in param updatedprovider when calling update method {}", e.toString() );
