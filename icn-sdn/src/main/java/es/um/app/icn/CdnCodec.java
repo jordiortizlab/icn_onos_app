@@ -63,42 +63,45 @@ public class CdnCodec  extends JsonCodec<Cdn> {
 
         ArrayNode providersarray = (ArrayNode) json.get(PROVIDERS_FIELD);
         ProviderCodec pc = new ProviderCodec();
-        for (JsonNode provider : providersarray) {
-            try {
-                ObjectNode providerobject = (ObjectNode) context.mapper().readTree(provider.toString());
-                Provider provider1 = pc.decode(providerobject, context);
-                cdn.createProvider(provider1);
-            } catch (IOException e) {
-                e.printStackTrace();
-                log.error("Unable to convert Provider JsonNode to ObjectNode");
+        if (providersarray != null)
+            for (JsonNode provider : providersarray) {
+                try {
+                    ObjectNode providerobject = (ObjectNode) context.mapper().readTree(provider.toString());
+                    Provider provider1 = pc.decode(providerobject, context);
+                    cdn.createProvider(provider1);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    log.error("Unable to convert Provider JsonNode to ObjectNode");
+                }
             }
-        }
 
         ArrayNode cachesarray = (ArrayNode) json.get(CACHES_FIELD);
         CacheCodec cc = new CacheCodec();
-        for (JsonNode cache : cachesarray) {
-            try {
-                ObjectNode cacheobject = (ObjectNode) context.mapper().readTree(cache.toString());
-                Cache cache1 = cc.decode(cacheobject, context);
-                cdn.createCache(cache1);
-            } catch (IOException e) {
-                e.printStackTrace();
-                log.error("Unable to convert Cahce JsonNode to ObjectNode");
+        if (cachesarray != null)
+            for (JsonNode cache : cachesarray) {
+                try {
+                    ObjectNode cacheobject = (ObjectNode) context.mapper().readTree(cache.toString());
+                    Cache cache1 = cc.decode(cacheobject, context);
+                    cdn.createCache(cache1);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    log.error("Unable to convert Cahce JsonNode to ObjectNode");
+                }
             }
-        }
 
         ArrayNode resourcesarray = (ArrayNode) json.get(RESOURCES_FIELD);
         ResourceCodec rc = new ResourceCodec();
-        for (JsonNode resource : resourcesarray) {
-            try {
-                ObjectNode resourceobject = (ObjectNode) context.mapper().readTree(resource.toString());
-                Resource resource1 = rc.decode(resourceobject, context);
-                cdn.createResource(resource1);
-            } catch (IOException e) {
-                e.printStackTrace();
-                log.error("Unable to convert Resource JsonNode to ObjectNode");
+        if (resourcesarray != null)
+            for (JsonNode resource : resourcesarray) {
+                try {
+                    ObjectNode resourceobject = (ObjectNode) context.mapper().readTree(resource.toString());
+                    Resource resource1 = rc.decode(resourceobject, context);
+                    cdn.createResource(resource1);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    log.error("Unable to convert Resource JsonNode to ObjectNode");
+                }
             }
-        }
 
         return cdn;
     }
