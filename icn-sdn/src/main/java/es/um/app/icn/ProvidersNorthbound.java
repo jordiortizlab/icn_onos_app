@@ -40,7 +40,6 @@ public class ProvidersNorthbound extends AbstractWebResource {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     @GET
-    @Path("Retrieve")
     @Produces(MediaType.APPLICATION_JSON)
 	public Response retrieve(@QueryParam("name")String cdnName) {
         ICdnService cdnService = getService(ICdnService.class);
@@ -66,7 +65,6 @@ public class ProvidersNorthbound extends AbstractWebResource {
 	}
 
     @PUT
-    @Path("create")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response create(@QueryParam("name")String cdnName, InputStream stream) {
