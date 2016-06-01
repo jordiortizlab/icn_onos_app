@@ -77,7 +77,6 @@ public class CacheNorthbound extends AbstractWebResource {
         if (cache == null) {
             // 404 Not Found if there's no cache with this name
             log.error("Unable to locate cache {}", cacheName);
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cache " + cacheName).build();
         }
 
         try {
@@ -87,8 +86,14 @@ public class CacheNorthbound extends AbstractWebResource {
                 log.error("jsonized cache name and cname argument differ");
                 return Response.status(Response.Status.NOT_FOUND).entity("jsonized cache name and cname argument differ").build();
             }
-            //Finally update the cache
-            cdnService.updateCache(cdn, updatedCache);
+            if (cache != null) {
+                //Finally update the cache
+                cdnService.updateCache(cdn, updatedCache);
+            }
+            else
+            {
+                cdnService.createCache(cdn, updatedCache);
+            }
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             log.error("Unable to parse jsonized cache in param updatedcache when calling update method {}", e.toString());
