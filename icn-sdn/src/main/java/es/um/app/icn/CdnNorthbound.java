@@ -52,7 +52,7 @@ public class CdnNorthbound extends AbstractWebResource {
         return ok(result.toString()).build(); // 200 OK otherwise
 	}
 
-    @PUT
+    @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
 	public Response update(@QueryParam("name")String cdnName, InputStream stream) {
@@ -69,8 +69,14 @@ public class CdnNorthbound extends AbstractWebResource {
                 log.error("jsonized cdn name and cdnName argument differ");
                 return Response.status(Response.Status.NOT_FOUND).entity("jsonized cdn name and cdnName argument differ").build();
             }
-            //Finally update the cdn
-            cdnService.updateCdn(updatedCdn);
+            if (cdn != null) {
+                //Finally update the cdn
+                cdnService.updateCdn(updatedCdn);
+            }
+            else
+            {
+                cdnService.createCdn(updatedCdn);
+            }
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             log.error("Unable to parse jsonized cdn in param updatedcdn when calling update method {}", e.toString());
