@@ -1,0 +1,1 @@
+{ "name" : "squid02", "description" : "Web cache in ATICA", "location" : { "dpid" : "00:00:00:00:00:00:00:02", "port" : "5" }, "macaddr" : "xx:xx:xx:xx:xx:xx" }

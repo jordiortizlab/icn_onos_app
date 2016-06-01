@@ -1,0 +1,1 @@
+{ "name" : "dailymotion", "description" : "DailyMotion video platform", "network" : "0.0.0.0/0", "uripattern" : "/video/\\S+/(\\S+)", "hostpattern" : "proxy.*dailymotion\\.com" }
