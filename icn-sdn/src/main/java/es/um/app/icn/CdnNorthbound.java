@@ -59,8 +59,7 @@ public class CdnNorthbound extends AbstractWebResource {
         ICdnService cdnService = getService(ICdnService.class);
         Cdn cdn = cdnService.retrieveCdn(cdnName);
         if (cdn == null) {
-            // 404 Not Found if there's no cdn with this name
-            log.error("Unable to locate cdn {}", cdnName);
+            log.info("Unable to locate cdn {}. New cdn definition", cdnName);
         }
         try {
             ObjectNode cdnobject = (ObjectNode) mapper().readTree(stream);

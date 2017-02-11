@@ -59,8 +59,7 @@ public class ProxyNorthbound extends AbstractWebResource {
 		ICdnService cdnService = getService(ICdnService.class);
 		Proxy proxy = cdnService.retrieveProxy(name);
 		if (proxy == null) {
-			// 404 Not Found if there's no proxy with this name
-			log.error("Unable to locate proxy {}", name);
+			log.info("Unable to locate proxy {}. New proxy definition", name);
 		}
         try {
             ObjectNode proxyobject = (ObjectNode) mapper().readTree(stream);

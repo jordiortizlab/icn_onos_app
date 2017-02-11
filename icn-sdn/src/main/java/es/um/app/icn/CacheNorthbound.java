@@ -75,8 +75,7 @@ public class CacheNorthbound extends AbstractWebResource {
         }
         Cache cache = cdnService.retrieveCache(cdn, cacheName);
         if (cache == null) {
-            // 404 Not Found if there's no cache with this name
-            log.error("Unable to locate cache {}", cacheName);
+            log.info("Unable to locate cache {}. New cache definition", cacheName);
         }
 
         try {

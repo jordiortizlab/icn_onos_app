@@ -71,8 +71,7 @@ public class ProviderNorthbound extends AbstractWebResource {
 		}
 		Provider provider = service.retrieveProvider(cdn, provName);
 		if (provider == null) {
-			// 404 Not Found if there's no provider with this name
-			log.error("Unable to locate provider {}", provName);
+			log.info("Unable to locate provider {}. New provider definition", provName);
 		}
 
 		try {

@@ -93,8 +93,7 @@ public class ProvidersNorthbound extends AbstractWebResource {
             e.printStackTrace();
             log.error("Unable to parse jsonized provider in param updatedprovider when calling update method {}", e.toString());
             return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized provider in param updatedprovider when calling update method").build();
-        } catch (UnsupportedOperationException | ClassCastException | NullPointerException | IllegalArgumentException e)
-        {
+        } catch (UnsupportedOperationException | ClassCastException | NullPointerException | IllegalArgumentException e) {
             e.printStackTrace();
             //The provider already exists, abort
             log.error("Provider probably already exists, provider storage problem {}", e.toString());
