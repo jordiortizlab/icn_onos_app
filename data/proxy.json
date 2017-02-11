@@ -1,1 +1,1 @@
-{ "name" : "proxy01", "description" : "HTTP proxy at Gaia lab", "macaddr" : "00:10:60:58:08:ea", "type" : "http" }
+{ "name" : "proxyMAT", "description" : "HTTP proxy at MATHS@Elrond", "macaddr" : "52:54:00:9E:90:58", "type" : "http" }
