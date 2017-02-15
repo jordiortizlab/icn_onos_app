@@ -67,7 +67,7 @@ public class CdnService implements
     protected static final int OFMESSAGE_DAMPER_CAPACITY = 10000;	// ms
     protected static final int OFMESSAGE_DAMPER_TIMEOUT = 250;		// ms
     protected static final boolean BIDIRECTIONAL_FLOW = true;
-    protected static final int PROCESSOR_PRIORITY = 1;
+    protected static final int PROCESSOR_PRIORITY = 2;
 
     /** Onos Services */
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
@@ -109,14 +109,48 @@ public class CdnService implements
         // Initialize our data structures
         cdns = new HashMap<String, Cdn>();
         proxies = new HashMap<String, Proxy>();
-
         // Install Processor
         packetService.addProcessor(cdnPacketProcessor, PacketProcessor.director(PROCESSOR_PRIORITY));
+
+        requestPackets();
+
     }
 
     @Deactivate
     public void deactivate() {
+        withdrawIntercepts();
         packetService.removeProcessor(cdnPacketProcessor);
+    }
+
+    @Modified
+    public void modified() {
+        requestPackets();
+    }
+
+    /**
+     * Request packet in via PacketService.
+     */
+    private void requestPackets() {
+        TrafficSelector.Builder selectorBuilder =
+                DefaultTrafficSelector.builder();
+        selectorBuilder.matchEthType(Ethernet.TYPE_IPV4);
+        selectorBuilder.matchIPProtocol(IPv4.PROTOCOL_TCP);
+        selectorBuilder.matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT));
+        packetService.requestPackets(selectorBuilder.build(), PacketPriority.CONTROL, appId);
+        // TODO: Missing IPv6
+    }
+
+    /**
+     * Cancel requested packet in via packet service.
+     */
+    private void withdrawIntercepts() {
+        TrafficSelector.Builder selectorBuilder =
+                DefaultTrafficSelector.builder();
+        selectorBuilder.matchEthType(Ethernet.TYPE_IPV4);
+        selectorBuilder.matchIPProtocol(IPv4.PROTOCOL_TCP);
+        selectorBuilder.matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT));
+        packetService.cancelPackets(selectorBuilder.build(), PacketPriority.CONTROL, appId);
+        // TODO: Missing IPv6
     }
 
     private class CdnPacketProcessor implements PacketProcessor {
@@ -127,16 +161,40 @@ public class CdnService implements
          * destination proxy and program the appropriate paths.
          */
         public void process(PacketContext context) {
-            log.debug("Process PACKET_IN from switch {}", context.inPacket().receivedFrom().toString());
             // Stop processing if the packet has been handled, since we
             // can't do any more to it.
             if (context.isHandled()) {
                 return;
             }
-            DeviceId deviceId = context.inPacket().receivedFrom().deviceId();
-            PortNumber inport = context.inPacket().receivedFrom().port();
+
+            // Only continue processing if HTTP traffic is received
             InboundPacket pkt = context.inPacket();
             Ethernet ethPkt = pkt.parsed();
+            if (!(ethPkt.getEtherType() == Ethernet.TYPE_IPV4) && !(ethPkt.getEtherType() == Ethernet.TYPE_IPV6)) {
+                log.trace("Packet is not IPv4 neither v6, ignoring");
+                return;
+            }
+            if (ethPkt.getEtherType() == Ethernet.TYPE_IPV4) {
+                IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
+                if (ipv4Pkt.getProtocol() != IPv4.PROTOCOL_TCP) {
+                    log.trace("IPv4 Packet is not TCP, ignoring");
+                    return;
+                }
+                TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
+                if ( tcpPkt.getDestinationPort() != UtilCdn.HTTP_PORT) {
+                    log.trace("IPv4 Packet is not HTTP, ignoring");
+                    return;
+                }
+            }
+            if (ethPkt.getEtherType() == Ethernet.TYPE_IPV6) {
+                //TODO: Missing IPv6
+                return;
+            }
+
+            log.debug("ICN Process PACKET_IN from switch {}", context.inPacket().receivedFrom().toString());
+            DeviceId deviceId = context.inPacket().receivedFrom().deviceId();
+            PortNumber inport = context.inPacket().receivedFrom().port();
+
 
             if (ethPkt == null) {
                 return;
@@ -164,26 +222,6 @@ public class CdnService implements
             if (cdns.isEmpty() || proxies.isEmpty()) {
                 log.debug("Ignoring flow: No available CDNs and/or proxies");
                 return;
-            }
-
-            // Only continue processing if HTTP traffic is received
-            if (!(ethPkt.getEtherType() == Ethernet.TYPE_IPV4) && !(ethPkt.getEtherType() == Ethernet.TYPE_IPV6)) {
-                log.trace("Packet is not IPv4 neither v6, ignoring");
-                return;
-            }
-            if (ethPkt.getEtherType() == Ethernet.TYPE_IPV4) {
-                IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
-                if (ipv4Pkt.PROTOCOL_TCP != UtilCdn.HTTP_PORT) {
-                    log.trace("IPv4 Packet is not HTTP, ignoring");
-                    return;
-                }
-            }
-            if (ethPkt.getEtherType() == Ethernet.TYPE_IPV6) {
-                IPv6 ipv6Pkt = (IPv6) ethPkt.getPayload();
-                if (ipv6Pkt.PROTOCOL_TCP != UtilCdn.HTTP_PORT) {
-                    log.trace("IPv6 Packet is not HTTP, ignoring");
-                    return;
-                }
             }
 
             // Program path between client and closest proxy for HTTP traffic
