@@ -1,4 +1,10 @@
-export CONTROLLER='10.7.0.4:8181'
+if [ $# -eq 0 ]
+then
+    export CONTROLLER='10.7.0.4:8181'
+else
+    export CONTROLLER=$1':8181'
+fi
+echo CONTROLLER: $CONTROLLER
 
 curl -u karaf:karaf -X POST --data @data/proxy.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/proxy\?name=proxyMAT
 curl -u karaf:karaf -X GET http:///$CONTROLLER/onos/icn/proxies
