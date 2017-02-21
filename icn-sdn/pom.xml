@@ -107,22 +107,6 @@
                 <artifactId>maven-bundle-plugin</artifactId>
                 <version>3.0.1</version>
                 <extensions>true</extensions>
-		                <configuration>
-                    <instructions>
-                        <_wab>src/main/webapp/</_wab>
-                        <Include-Resource>
-                            WEB-INF/classes/apidoc/swagger.json=target/swagger.json,
-                            {maven-resources}
-                        </Include-Resource>
-                        <Bundle-SymbolicName>
-                            ${project.groupId}.${project.artifactId}
-                        </Bundle-SymbolicName>
-                        <Import-Package>
-                            *,org.glassfish.jersey.servlet
-                        </Import-Package>
-                        <Web-ContextPath>${web.context}</Web-ContextPath>
-                    </instructions>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -155,7 +139,7 @@
             <plugin>
                 <groupId>org.onosproject</groupId>
                 <artifactId>onos-maven-plugin</artifactId>
-                <version>1.9</version>
+                <version>1.10</version>
                 <executions>
                     <execution>
                         <id>cfg</id>
