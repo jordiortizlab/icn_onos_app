@@ -1,1 +1,1 @@
-{ "name" : "proxyMAT", "description" : "HTTP proxy at MATHS@Elrond", "macaddr" : "52:54:00:9E:90:58", "type" : "http" }
+{ "name" : "proxyMAT", "description" : "HTTP proxy at MATHS@Elrond", "macaddr" : "52:54:00:9E:90:58", "type" : "http", "location" : { "dpid" : "of:000a1c98ec7fdac0", "port" : "20" } }

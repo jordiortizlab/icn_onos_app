@@ -8,14 +8,15 @@ org.onosproject.vpls
 es.um.icn
 
 #Create VPLS layout
-interface-add of:000a645106c87400/9 CiscoDhcpServer
-interface-add of:000a1c98ec7fdac0/20 ElrondVlan310_ICNCache
-interface-add of:000a1c98ec7fdac0/19 ElrondVlan309_XubuntuClient
+# interface-add of:000a645106c87400/9 CiscoDhcpServer
+# interface-add of:000a1c98ec7fdac0/20 ElrondVlan310_ICNCache
+# interface-add of:000a1c98ec7fdac0/19 ElrondVlan309_XubuntuClient
 
-vpls create ICNvpls
-vpls add-if ICNvpls CiscoDhcpServer
-vpls add-if ICNvpls ElrondVlan310_ICNCache
-vpls add-if ICNvpls ElrondVlan309_XubuntuClient
+# vpls create ICNvpls
+# vpls add-if ICNvpls CiscoDhcpServer
+# vpls add-if ICNvpls ElrondVlan310_ICNCache
+# vpls add-if ICNvpls ElrondVlan309_XubuntuClient
+onos-netcfg CONTROLLER vpls.json
 
 
 # Create ICN Layout
