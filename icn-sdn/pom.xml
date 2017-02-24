@@ -111,14 +111,14 @@
                   <instructions>
                     <Bundle-SymbolicName>${project.artifactId}</Bundle-SymbolicName>
                     <Web-ContextPath>${web.context}</Web-ContextPath>
-                        <_wab>src/main/webapp/</_wab>
-                        <Include-Resource>
-                            WEB-INF/classes/apidoc/swagger.json=target/swagger.json,
-                            {maven-resources}
-                        </Include-Resource>
-                        <Import-Package>
-                            *,org.glassfish.jersey.servlet
-                        </Import-Package>
+                    <_wab>src/main/webapp/</_wab>
+                    <Include-Resource>
+                      WEB-INF/classes/apidoc/swagger.json=target/swagger.json,
+                      {maven-resources}
+                    </Include-Resource>
+                    <Import-Package>
+                      *,org.glassfish.jersey.servlet
+                    </Import-Package>
                   </instructions>
                 </configuration>
             </plugin>
