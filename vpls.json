@@ -1,0 +1,37 @@
+{
+  "ports": {
+    "of:000a645106c87400/9": {
+      "interfaces": [
+        {
+          "name": "CiscoDhcpServer"
+        }
+      ]
+    },
+    "of:000a1c98ec7fdac0/20": {
+      "interfaces": [
+        {
+          "name": "ElrondVlan310_ICNCache"
+        }
+      ]
+    },
+    "of:000a1c98ec7fdac0/19": {
+      "interfaces": [
+        {
+          "name": "ElrondVlan309_XubuntuClient"
+        }
+      ]
+    }
+  },
+  "apps" : {
+    "org.onosproject.vpls" : {
+      "vpls" : {
+        "vplsList" : [
+          {
+            "name" : "ICNvpls",
+              "interfaces" : ["CiscoDhcpServer", "ElrondVlan310_ICNCache", "ElrondVlan309_XubuntuClient"]
+          }
+        ]
+      }
+    }
+  }
+}
