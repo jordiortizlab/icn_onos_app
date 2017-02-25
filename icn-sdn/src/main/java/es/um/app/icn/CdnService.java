@@ -551,9 +551,9 @@ public class CdnService implements
                 log.warn("More than one host per mac, multiple links for same host? {}", m.getMacaddr());
             for (Host host : hostsByMac) {
                 Set<Path> paths = topologyService.getPaths(topologyService.currentTopology(), sw, host.location().deviceId());
-                if (sw.toString().equals(host.location().deviceId()))
+                if (sw.toString().equals(host.location().deviceId().toString()))
                 {
-                    // Middlebox and on the same device. No path needed. No need to look for best path.
+                    // Middlebox and host on the same device. No path needed. No need to look for best path.
                     mbox = m;
                     continue;
                 } else {
