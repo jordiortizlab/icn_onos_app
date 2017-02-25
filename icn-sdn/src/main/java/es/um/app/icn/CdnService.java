@@ -68,6 +68,8 @@ public class CdnService implements
     protected static final int OFMESSAGE_DAMPER_TIMEOUT = 250;		// ms
     protected static final boolean BIDIRECTIONAL_FLOW = true;
     protected static final int PROCESSOR_PRIORITY = 2;
+    protected static final int INTENT_PRIORITY_HIGH = 3000;
+    protected static final int INTENT_PRIORITY_LOW = 100;
 
     /** Onos Services */
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
@@ -500,6 +502,7 @@ public class CdnService implements
                 .two(mboxhost.id())
                 .selector(selector)
                 .treatment(treatment)
+                .priority(INTENT_PRIORITY_HIGH)
                 .build();
         intentService.submit(hostIntent);
         return hostIntent;
