@@ -473,7 +473,11 @@ public class CdnService implements
 	private HostToHostIntent programPath(HostLocation origin, IMiddlebox mbox) {
         log.trace("Creating Host2HostIntent for middlebox {} -> {}", origin.toString(), mbox.getLocation().toString());
         Key key = Key.of(origin.toString() + "->" + mbox.toString(), appId);
-        TrafficSelector selector = DefaultTrafficSelector.builder().matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT)).build();
+        TrafficSelector selector = DefaultTrafficSelector.builder()
+                .matchEthType(Ethernet.TYPE_IPV4)
+                .matchIPProtocol(IPv4.PROTOCOL_TCP)
+                .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
+                .build();
         TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
 
         Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(mbox.getMacaddr()));
