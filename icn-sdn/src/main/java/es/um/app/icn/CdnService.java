@@ -212,12 +212,6 @@ public class CdnService implements
                 return;
             }
 
-
-            // Given that this is a client-generated frame, let's add a flow
-            // with intermediate priority to punt HTTP traffic to the controller
-            // (in case it doesn't exist yet)
-            addIntermediatePriorityHttpFlowToController(deviceId, pkt);
-
             // Nothing to do if we don't have any CDN or proxy
             if (cdns.isEmpty() || proxies.isEmpty()) {
                 log.debug("Ignoring flow: No available CDNs and/or proxies");
@@ -279,36 +273,15 @@ public class CdnService implements
 
         }
 
-        private void addIntermediatePriorityHttpFlowToController(DeviceId deviceId, InboundPacket pkt)
-        {
-            TrafficSelector.Builder selectorBuilder = DefaultTrafficSelector.builder();
-
-            // Match IP/TCP/HTTP messages from srcmac
-            selectorBuilder.matchIPProtocol(UtilCdn.IPPROTO_TCP)
-                    .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
-                    .matchEthSrc(pkt.parsed().getSourceMAC());
-
-            // Send to Controller
-            TrafficTreatment treatment = DefaultTrafficTreatment.builder()
-                    .setOutput(PortNumber.CONTROLLER)
-                    .build();
-
-            ForwardingObjective forwardingObjective = DefaultForwardingObjective.builder()
-                    .withSelector(selectorBuilder.build())
-                    .withTreatment(treatment)
-                    .withPriority(PUNT_OFPRIO)
-                    .withFlag(ForwardingObjective.Flag.VERSATILE) //TODO: Check if this should be Specific/Versatile
-                    .fromApp(appId)
-                    .makeTemporary(PUNT_OFIDLE_TIMEOUT)
-                    .add();
-            flowObjectiveService.forward(deviceId, forwardingObjective);
-        }
-
         private Intent createIntentToProxy(HostId srcId, HostId dstId)
         {
-            log.trace("Creating Host2HostIntent for Proxy {}", srcId.toString() + "->" + dstId.toString());
+            log.trace("Creating Host2HostIntent to Proxy {}", srcId.toString() + "->" + dstId.toString());
             Key key = Key.of(srcId.toString() + "->" + dstId.toString(), appId);
-            TrafficSelector selector = DefaultTrafficSelector.builder().matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT)).build();
+            TrafficSelector selector = DefaultTrafficSelector.builder()
+                    .matchEthType(Ethernet.TYPE_IPV4)
+                    .matchIPProtocol(IPv4.PROTOCOL_TCP)
+                    .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
+                    .build();
             TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
 
             HostToHostIntent hostIntent = HostToHostIntent.builder()
@@ -318,6 +291,7 @@ public class CdnService implements
                     .two(dstId)
                     .selector(selector)
                     .treatment(treatment)
+                    .priority(INTENT_PRIORITY_HIGH)
                     .build();
             intentService.submit(hostIntent);
             return hostIntent;
@@ -325,9 +299,13 @@ public class CdnService implements
 
         private Intent createIntentFromProxy(HostId srcId, HostId dstId)
         {
-            log.trace("Creating Host2HostIntent for Proxy {}", srcId.toString() + "->" + dstId.toString());
+            log.trace("Creating Host2HostIntent from Proxy {}", srcId.toString() + "->" + dstId.toString());
             Key key = Key.of(srcId.toString() + "->" + dstId.toString(), appId);
-            TrafficSelector selector = DefaultTrafficSelector.builder().matchTcpSrc(TpPort.tpPort(UtilCdn.HTTP_PORT)).build();
+            TrafficSelector selector = DefaultTrafficSelector.builder()
+                    .matchEthType(Ethernet.TYPE_IPV4)
+                    .matchIPProtocol(IPv4.PROTOCOL_TCP)
+                    .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
+                    .build();
             TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
 
             HostToHostIntent hostIntent = HostToHostIntent.builder()
@@ -337,6 +315,7 @@ public class CdnService implements
                     .two(dstId)
                     .selector(selector)
                     .treatment(treatment)
+                    .priority(INTENT_PRIORITY_HIGH)
                     .build();
             intentService.submit(hostIntent);
             return hostIntent;
