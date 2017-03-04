@@ -43,6 +43,7 @@ import org.onosproject.net.intent.HostToHostIntent;
 import org.onosproject.net.intent.Intent;
 import org.onosproject.net.intent.IntentService;
 import org.onosproject.net.intent.Key;
+import org.onosproject.net.intent.PointToPointIntent;
 import org.onosproject.net.packet.*;
 import org.onosproject.net.topology.PathService;
 import org.onosproject.net.topology.TopologyService;
@@ -194,8 +195,11 @@ public class CdnService implements
             }
 
             log.debug("ICN Process PACKET_IN from switch {}", context.inPacket().receivedFrom().toString());
-            DeviceId deviceId = context.inPacket().receivedFrom().deviceId();
+            DeviceId indeviceId = context.inPacket().receivedFrom().deviceId();
             PortNumber inport = context.inPacket().receivedFrom().port();
+
+            DeviceId outdeviceId = null;
+            PortNumber outport = null;
 
 
             if (ethPkt == null) {
@@ -222,63 +226,73 @@ public class CdnService implements
 
             // Program path between client and closest proxy for HTTP traffic
             Proxy proxy = (Proxy) findClosestMiddlebox(proxies.values(),
-                    deviceId, inport);
+                    indeviceId, inport);
             if (proxy == null) {
                 log.warn("Could not program path to proxy: No proxy available");
                 return;
             }
 
-            Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(proxy.getMacaddr()));
-            if (hostsByMac.isEmpty()) {
-                log.error("No Host for proxy mac");
-                return;
-            }
-            if(hostsByMac.size() > 1)
-                log.warn("More than one host per mac, multiple links for same proxy? {}", proxy.getMacaddr());
+            if (proxy.getLocation() == null) {
+                // We don't know where the proxy is located. Use the hostprovider app info
+                Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(proxy.getMacaddr()));
 
-            Host proxyhost = null;
-            for (Host host : hostsByMac) {
-                proxyhost = host;
-                break;
+                if (hostsByMac.isEmpty()) {
+                    log.error("No Host for proxy mac");
+                    return;
+                }
+                if (hostsByMac.size() > 1)
+                    log.warn("More than one host per mac, multiple links for same proxy? {}", proxy.getMacaddr());
+
+                for (Host host : hostsByMac) {
+                    outdeviceId = host.location().deviceId();
+                    outport = host.location().port();
+                    break;
+                }
+            } else {
+                // If the location was set in the json there is no need to look up for the host
+                outdeviceId = DeviceId.deviceId(proxy.getLocation().dpid);
+                outport = PortNumber.portNumber(proxy.getLocation().port);
             }
 
             // Using Intent for path creation
-            Intent toproxy = this.createIntentToProxy(srcId, proxyhost.id());
-            Intent fromproxy = this.createIntentFromProxy(proxyhost.id(), srcId);
+            ConnectPoint sourceConnectPoint = new ConnectPoint(indeviceId, inport);
+            ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
+            // Create intent from host to proxy
+            Intent toproxy = this.createIntent(sourceConnectPoint, destinationConnectPoint);
+            // Create return intent
+            Intent fromproxy = this.createIntent(destinationConnectPoint, sourceConnectPoint);
 
             // Take care of actual package
-            // Get first jump output
-            Set<Host> originByMac = hostService.getHostsByMac(srcId.mac());
-            Set<Host> destinationByMac = hostService.getHostsByMac(dstId.mac());
-            HostLocation locationorigin = null;
-            for (Host host : originByMac) {
-                locationorigin = host.location();
-            }
-            HostLocation locationdestination = null;
-            for (Host host : destinationByMac) {
-                locationdestination = host.location();
-            }
-
             // TODO: What happens if multiple paths available, intents could use different path. We might want to ask the intent for its decission.
-            Set<Path> paths = pathService.getPaths(locationorigin.elementId(), locationdestination.elementId());
+            Set<Path> paths = pathService.getPaths(indeviceId, outdeviceId);
             Link sourcelink = null;
             for (Path path : paths) {
                 sourcelink = path.links().get(0);
             }
+            // TODO: Do we need to create a flowObjective?
+
             TrafficTreatment.Builder builder =
                     DefaultTrafficTreatment.builder();
-            builder.setOutput(sourcelink.src().port());
+            // Lets try just to output the packet on the toproxy intent, so
+            // make it a new packet on the indeviceid:inport
+            builder.setOutput(inport);
             packetService.emit(new DefaultOutboundPacket(
-                    sourcelink.src().deviceId(),
+                    indeviceId,
                     builder.build(),
-                    ByteBuffer.wrap(ethPkt.serialize())));
+                    ByteBuffer.wrap(ethPkt.serialize())
+            ));
+//            builder.setOutput(sourcelink.src().port());
+//            packetService.emit(new DefaultOutboundPacket(
+//                    sourcelink.src().deviceId(),
+//                    builder.build(),
+//                    ByteBuffer.wrap(ethPkt.serialize())));
 
         }
 
-        private Intent createIntentToProxy(HostId srcId, HostId dstId)
+        private Intent createIntent(ConnectPoint source, ConnectPoint destination)
         {
-            log.trace("Creating Host2HostIntent to Proxy {}", srcId.toString() + "->" + dstId.toString());
-            Key key = Key.of(srcId.toString() + "->" + dstId.toString(), appId);
+            log.trace("Creating Host2HostIntent to Proxy {}", source.toString() + "->" + destination.toString());
+            Key key = Key.of(source.toString() + "->" + destination.toString(), appId);
             TrafficSelector selector = DefaultTrafficSelector.builder()
                     .matchEthType(Ethernet.TYPE_IPV4)
                     .matchIPProtocol(IPv4.PROTOCOL_TCP)
@@ -286,41 +300,18 @@ public class CdnService implements
                     .build();
             TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
 
-            HostToHostIntent hostIntent = HostToHostIntent.builder()
+            PointToPointIntent pointIntent = PointToPointIntent.builder()
                     .appId(appId)
                     .key(key)
-                    .one(srcId)
-                    .two(dstId)
+                    .filteredIngressPoint(new FilteredConnectPoint(source))
+                    .filteredEgressPoint(new FilteredConnectPoint(destination))
                     .selector(selector)
                     .treatment(treatment)
                     .priority(INTENT_PRIORITY_HIGH)
                     .build();
-            intentService.submit(hostIntent);
-            return hostIntent;
-        }
+            intentService.submit(pointIntent);
+            return pointIntent;
 
-        private Intent createIntentFromProxy(HostId srcId, HostId dstId)
-        {
-            log.trace("Creating Host2HostIntent from Proxy {}", srcId.toString() + "->" + dstId.toString());
-            Key key = Key.of(srcId.toString() + "->" + dstId.toString(), appId);
-            TrafficSelector selector = DefaultTrafficSelector.builder()
-                    .matchEthType(Ethernet.TYPE_IPV4)
-                    .matchIPProtocol(IPv4.PROTOCOL_TCP)
-                    .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
-                    .build();
-            TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
-
-            HostToHostIntent hostIntent = HostToHostIntent.builder()
-                    .appId(appId)
-                    .key(key)
-                    .one(srcId)
-                    .two(dstId)
-                    .selector(selector)
-                    .treatment(treatment)
-                    .priority(INTENT_PRIORITY_HIGH)
-                    .build();
-            intentService.submit(hostIntent);
-            return hostIntent;
         }
 
     }
