@@ -39,6 +39,7 @@ import org.onosproject.net.flowobjective.DefaultForwardingObjective;
 import org.onosproject.net.flowobjective.FlowObjectiveService;
 import org.onosproject.net.flowobjective.ForwardingObjective;
 import org.onosproject.net.host.HostService;
+import org.onosproject.net.intent.ConnectivityIntent;
 import org.onosproject.net.intent.HostToHostIntent;
 import org.onosproject.net.intent.Intent;
 import org.onosproject.net.intent.IntentService;
@@ -50,7 +51,7 @@ import org.onosproject.net.topology.Topology;
 import org.onosproject.net.topology.TopologyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import sun.security.x509.IPAddressName;
 
 
 @Component(immediate = true)
@@ -171,15 +172,21 @@ public class CdnService implements
                 return;
             }
 
+
             // Only continue processing if HTTP traffic is received
             InboundPacket pkt = context.inPacket();
             Ethernet ethPkt = pkt.parsed();
+            IpAddress inAddr, dstAddr = null;
+            MacAddress dstl2Addr = null;
             if (!(ethPkt.getEtherType() == Ethernet.TYPE_IPV4) && !(ethPkt.getEtherType() == Ethernet.TYPE_IPV6)) {
                 log.trace("Packet is not IPv4 neither v6, ignoring");
                 return;
             }
             if (ethPkt.getEtherType() == Ethernet.TYPE_IPV4) {
                 IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
+                inAddr = IpAddress.valueOf(ipv4Pkt.getSourceAddress());
+                dstAddr = IpAddress.valueOf(ipv4Pkt.getDestinationAddress());
+                dstl2Addr = ethPkt.getDestinationMAC();
                 if (ipv4Pkt.getProtocol() != IPv4.PROTOCOL_TCP) {
                     log.trace("IPv4 Packet is not TCP, ignoring");
                     return;
@@ -201,6 +208,8 @@ public class CdnService implements
 
             DeviceId outdeviceId = null;
             PortNumber outport = null;
+            IpAddress outaddress = null;
+            MacAddress outl2address = null;
 
 
             if (ethPkt == null) {
@@ -247,21 +256,27 @@ public class CdnService implements
                 for (Host host : hostsByMac) {
                     outdeviceId = host.location().deviceId();
                     outport = host.location().port();
+                    outaddress = (IpAddress) host.ipAddresses().toArray()[0];
+                    outl2address = host.mac();
                     break;
                 }
             } else {
                 // If the location was set in the json there is no need to look up for the host
                 outdeviceId = DeviceId.deviceId(proxy.getLocation().dpid);
                 outport = PortNumber.portNumber(proxy.getLocation().port);
+                outaddress = IpAddress.valueOf(proxy.getIpaddr());
+                outl2address = MacAddress.valueOf(proxy.getMacaddr());
             }
 
             // Using Intent for path creation
             ConnectPoint sourceConnectPoint = new ConnectPoint(indeviceId, inport);
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
             // Create intent from host to proxy
-            Intent toproxy = this.createIntent(sourceConnectPoint, destinationConnectPoint);
+            Intent toproxy = this.createIntent(sourceConnectPoint, destinationConnectPoint,
+                    false, null, null, true, outaddress, outl2address);
             // Create return intent
-            Intent fromproxy = this.createIntent(destinationConnectPoint, sourceConnectPoint);
+            Intent fromproxy = this.createIntent(destinationConnectPoint, sourceConnectPoint,
+                    true, dstAddr, dstl2Addr, false, null, null);
 
             // Take care of actual package
             // TODO: What happens if multiple paths available, intents could use different path. We might want to ask the intent for its decission.
@@ -275,12 +290,17 @@ public class CdnService implements
             TrafficTreatment.Builder builder =
                     DefaultTrafficTreatment.builder();
             // Lets try just to output the packet on the toproxy intent, so
-            // make it a new packet on the indeviceid:inport
+            // make it a new packet on the indeviceid:inport.
+            // We need to rewrite ip and mac
+
             builder.setOutput(inport);
+            Ethernet inethpkt = (Ethernet) ethPkt.clone();
+            inethpkt.setDestinationMACAddress(outl2address);
+            ((IPv4)inethpkt.getPayload()).setDestinationAddress(outaddress.toString());
             packetService.emit(new DefaultOutboundPacket(
                     indeviceId,
                     builder.build(),
-                    ByteBuffer.wrap(ethPkt.serialize())
+                    ByteBuffer.wrap(inethpkt.serialize())
             ));
 //            builder.setOutput(sourcelink.src().port());
 //            packetService.emit(new DefaultOutboundPacket(
@@ -290,8 +310,9 @@ public class CdnService implements
 
         }
 
-        private Intent createIntent(ConnectPoint source, ConnectPoint destination)
-        {
+        private Intent createIntent(ConnectPoint source, ConnectPoint destination,
+                                    boolean rewriteSource, IpAddress sourceAddr, MacAddress sourcel2Addr,
+                                    boolean rewriteDestination, IpAddress destinationAddr, MacAddress destinationl2Addr) {
             log.trace("Creating Host2HostIntent to Proxy {}", source.toString() + "->" + destination.toString());
             Key key = Key.of(source.toString() + "->" + destination.toString(), appId);
             TrafficSelector selector = DefaultTrafficSelector.builder()
@@ -299,7 +320,22 @@ public class CdnService implements
                     .matchIPProtocol(IPv4.PROTOCOL_TCP)
                     .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
                     .build();
-            TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
+
+            TrafficTreatment treatment = null;
+            if (!rewriteSource && ! rewriteDestination) {
+                treatment = DefaultTrafficTreatment.emptyTreatment();
+            } else {
+                TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
+                if (rewriteSource) {
+                    builder.setIpSrc(sourceAddr);
+                    builder.setEthSrc(sourcel2Addr);
+                }
+                if (rewriteDestination) {
+                    builder.setIpDst(destinationAddr);
+                    builder.setEthDst(destinationl2Addr);
+                }
+                treatment = builder.build();
+            }
 
             PointToPointIntent pointIntent = PointToPointIntent.builder()
                     .appId(appId)
@@ -315,9 +351,15 @@ public class CdnService implements
 
         }
 
+        private Intent createIntent(ConnectPoint source, ConnectPoint destination) {
+            return createIntent(source, destination,
+                    false, null, null,
+                    false, null, null);
+        }
+
     }
-	
-	/**
+
+    /**
 	 * Program required flows when a proxy informs that a resource is being
 	 * requested.
 	 * @param req
