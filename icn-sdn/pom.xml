@@ -34,6 +34,12 @@
         <onos.app.category>default</onos.app.category>
         <onos.app.url>http://www.um.es</onos.app.url>
         <onos.app.readme>ICN over SDN app from University of Murcia</onos.app.readme>
+        <onos.app.requires>
+            org.onosproject.openflow-base,
+            org.onosproject.proxyarp,
+            org.onosproject.lldpprovider,
+            org.onosproject.hostprovider
+        </onos.app.requires>
 
         <web.context>/onos/icn</web.context>
         <api.version>1.0.0</api.version>
