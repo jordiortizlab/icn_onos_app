@@ -20,6 +20,13 @@
           "name": "ElrondVlan309_XubuntuClient"
         }
       ]
+    },  
+    "of:of:000a1c98ec7fea40/13": {
+      "interfaces": [
+        {
+          "name": "SarumanVlan303_lxc"
+        }
+      ]
     }
   },
   "apps" : {
@@ -28,7 +35,7 @@
         "vplsList" : [
           {
             "name" : "ICNvpls",
-              "interfaces" : ["CiscoDhcpServer", "ElrondVlan310_ICNCache", "ElrondVlan309_XubuntuClient"]
+              "interfaces" : ["CiscoDhcpServer", "ElrondVlan310_ICNCache", "ElrondVlan309_XubuntuClient", "SarumanVlan303_lxc"]
           }
         ]
       }
