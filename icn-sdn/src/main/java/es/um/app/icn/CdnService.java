@@ -215,13 +215,13 @@ public class CdnService implements
             flow.setSmac(ethPkt.getSourceMAC().toString());
             flow.setDmac(ethPkt.getDestinationMAC().toString());
             if (findProxy(flow.getSmac()) != null || findCache(flow.getDmac()) != null) {
-                log.debug("Ignoring device {}: Not a client", flow.getSmac());
+                log.info("Ignoring device {}: Not a client", flow.getSmac());
                 return;
             }
 
             // Nothing to do if we don't have any CDN or proxy
             if (cdns.isEmpty() || proxies.isEmpty()) {
-                log.debug("Ignoring flow: No available CDNs and/or proxies");
+                log.error("Ignoring flow: No available CDNs and/or proxies");
                 return;
             }
 
@@ -229,7 +229,7 @@ public class CdnService implements
             Proxy proxy = (Proxy) findClosestMiddlebox(proxies.values(),
                     indeviceId, inport);
             if (proxy == null) {
-                log.warn("Could not program path to proxy: No proxy available");
+                log.error("Could not program path to proxy: No proxy available");
                 return;
             }
 
