@@ -46,6 +46,7 @@ import org.onosproject.net.intent.Key;
 import org.onosproject.net.intent.PointToPointIntent;
 import org.onosproject.net.packet.*;
 import org.onosproject.net.topology.PathService;
+import org.onosproject.net.topology.Topology;
 import org.onosproject.net.topology.TopologyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -542,28 +543,40 @@ public class CdnService implements
 		int minLen = Integer.MAX_VALUE;
 		
 		for (IMiddlebox m: middleboxes) {
-            Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(m.getMacaddr()));
-            if (hostsByMac.isEmpty())
-                continue;
-            if(hostsByMac.size() > 1)
-                log.warn("More than one host per mac, multiple links for same host? {}", m.getMacaddr());
-            for (Host host : hostsByMac) {
-                Set<Path> paths = topologyService.getPaths(topologyService.currentTopology(), sw, host.location().deviceId());
-                if (sw.toString().equals(host.location().deviceId().toString()))
-                {
-                    // Middlebox and host on the same device. No path needed. No need to look for best path.
-                    mbox = m;
+            String mboxDeviceId = null;
+            if (m.getLocation() == null) {
+                // There was no info in the config json about location. Try to find the host
+                Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(m.getMacaddr()));
+                if (hostsByMac.isEmpty())
                     continue;
-                } else {
-                    for (Path path : paths) {
-                        if (path.links().size() < minLen) { // TODO: Here we could take into account other metrics rather than number of links
-                            minLen = path.links().size();
-                            mbox = m;
-                        }
+                if (hostsByMac.size() > 1)
+                    log.warn("More than one host per mac, multiple links for same host? {}", m.getMacaddr());
+                for (Host host : hostsByMac) {
+                    mboxDeviceId = host.location().deviceId().toString();
+                }
+            } else {
+                // Get info about middlebox location from config
+                mboxDeviceId = m.getLocation().dpid;
+            }
+
+            Topology topology = topologyService.currentTopology();
+            log.info("Paths in topology: {}", topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId)));
+
+            Set<Path> paths = topologyService.getPaths(topologyService.currentTopology(), sw, DeviceId.deviceId(mboxDeviceId));
+            if (sw.toString().equals(mboxDeviceId))
+            {
+                // Middlebox and host on the same device. No path needed. No need to look for best path.
+                mbox = m;
+                continue;
+            } else {
+                for (Path path : paths) {
+                    if (path.links().size() < minLen) { // TODO: Here we could take into account other metrics rather than number of links
+                        minLen = path.links().size();
+                        mbox = m;
                     }
                 }
             }
-		}
+        }
 		return mbox;
 	}
 	
