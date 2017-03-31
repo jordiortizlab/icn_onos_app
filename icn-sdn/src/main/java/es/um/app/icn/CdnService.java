@@ -274,40 +274,24 @@ public class CdnService implements
             // Create intent from host to proxy
             Intent toproxy = this.createIntent(sourceConnectPoint, destinationConnectPoint,
                     false, null, null, true, outaddress, outl2address);
+            log.debug("Intent created toproxy {}", toproxy);
             // Create return intent
             Intent fromproxy = this.createIntent(destinationConnectPoint, sourceConnectPoint,
                     true, dstAddr, dstl2Addr, false, null, null);
-
+            log.debug("Intent created fromproxy {}", fromproxy);
             // Take care of actual package
-            // TODO: What happens if multiple paths available, intents could use different path. We might want to ask the intent for its decission.
-            Set<Path> paths = pathService.getPaths(indeviceId, outdeviceId);
-            Link sourcelink = null;
-            for (Path path : paths) {
-                sourcelink = path.links().get(0);
-            }
-            // TODO: Do we need to create a flowObjective?
+            TrafficTreatment treatment = DefaultTrafficTreatment.builder()
+                    .setOutput(outport).build();
 
-            TrafficTreatment.Builder builder =
-                    DefaultTrafficTreatment.builder();
-            // Lets try just to output the packet on the toproxy intent, so
-            // make it a new packet on the indeviceid:inport.
-            // We need to rewrite ip and mac
-
-            builder.setOutput(inport);
             Ethernet inethpkt = (Ethernet) ethPkt.clone();
             inethpkt.setDestinationMACAddress(outl2address);
             ((IPv4)inethpkt.getPayload()).setDestinationAddress(outaddress.toString());
-            packetService.emit(new DefaultOutboundPacket(
+            OutboundPacket packet =new DefaultOutboundPacket(
                     indeviceId,
-                    builder.build(),
-                    ByteBuffer.wrap(inethpkt.serialize())
-            ));
-//            builder.setOutput(sourcelink.src().port());
-//            packetService.emit(new DefaultOutboundPacket(
-//                    sourcelink.src().deviceId(),
-//                    builder.build(),
-//                    ByteBuffer.wrap(ethPkt.serialize())));
-
+                    treatment,
+                    ByteBuffer.wrap(inethpkt.serialize()));
+            packetService.emit(packet);
+            log.info("sending packet: {}", packet);
         }
 
         private Intent createIntent(ConnectPoint source, ConnectPoint destination,
