@@ -27,7 +27,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <onos.version>1.8.0</onos.version>
+        <onos.version>1.9.0</onos.version>
         <onos.app.name>es.um.icn</onos.app.name>
         <onos.app.title>ICN over SDN app</onos.app.title>
         <onos.app.origin>University of Murcia</onos.app.origin>
