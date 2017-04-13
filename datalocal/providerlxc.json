@@ -1,0 +1,1 @@
+{ "name" : "lxchost2", "description" : "python -m SimpleHTTPServer @ LXC2", "network" : "10.0.0.0/8"}
