@@ -349,6 +349,7 @@ public class CdnService implements
                     .priority(INTENT_PRIORITY_HIGH)
                     .build();
             intentService.submit(pointIntent);
+            installedIntents.put(pointIntent.id(), pointIntent);
             return pointIntent;
 
         }
