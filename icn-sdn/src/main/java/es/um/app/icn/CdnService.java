@@ -126,7 +126,10 @@ public class CdnService implements
 
     @Deactivate
     public void deactivate() {
-        installedIntents.forEach( (k,v) -> intentService.withdraw(v) );
+        installedIntents.forEach( (k,v) -> {
+            log.info("Withdrawing icn intent: {}", v.toString());
+            intentService.withdraw(v);
+        });
         installedIntents.clear();
         withdrawIntercepts();
         packetService.removeProcessor(cdnPacketProcessor);
