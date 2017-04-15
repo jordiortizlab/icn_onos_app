@@ -166,11 +166,14 @@ public class CdnService implements
          * destination proxy and program the appropriate paths.
          */
         public void process(PacketContext context) {
+
+            // WE DO ACTUALLY NEED TO PARSE PACKETS ALREADY PARSED IF WE WANT
+            // TO SUPERSEED E.G, the FWD app
             // Stop processing if the packet has been handled, since we
             // can't do any more to it.
-            if (context.isHandled()) {
-                return;
-            }
+            //            if (context.isHandled()) {
+            //                return;
+            //            }
 
 
             // Only continue processing if HTTP traffic is received
