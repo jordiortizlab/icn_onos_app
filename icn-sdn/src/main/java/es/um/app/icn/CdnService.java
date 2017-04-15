@@ -193,8 +193,10 @@ public class CdnService implements
                 log.trace("Packet is not IPv4 neither v6, ignoring");
                 return;
             }
+            IPv4 ipv4Pkt = null;
+            TCP tcpPkt = null;
             if (ethPkt.getEtherType() == Ethernet.TYPE_IPV4) {
-                IPv4 ipv4Pkt = (IPv4) ethPkt.getPayload();
+                ipv4Pkt = (IPv4) ethPkt.getPayload();
                 inAddr = IpAddress.valueOf(ipv4Pkt.getSourceAddress());
                 dstAddr = IpAddress.valueOf(ipv4Pkt.getDestinationAddress());
                 dstl2Addr = ethPkt.getDestinationMAC();
@@ -202,7 +204,7 @@ public class CdnService implements
                     log.trace("IPv4 Packet is not TCP, ignoring");
                     return;
                 }
-                TCP tcpPkt = (TCP) ipv4Pkt.getPayload();
+                tcpPkt = (TCP) ipv4Pkt.getPayload();
                 if ( tcpPkt.getDestinationPort() != UtilCdn.HTTP_PORT) {
                     log.trace("IPv4 Packet is not HTTP, ignoring");
                     return;
@@ -283,11 +285,13 @@ public class CdnService implements
             ConnectPoint sourceConnectPoint = new ConnectPoint(indeviceId, inport);
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
             // Create intent from host to proxy
-            Intent toproxy = this.createIntent(sourceConnectPoint, destinationConnectPoint,
+            Intent toproxy = this.createIntent(ethPkt, ipv4Pkt, tcpPkt,
+                    sourceConnectPoint, destinationConnectPoint,
                     false, null, null, true, outaddress, outl2address);
             log.debug("Intent created toproxy {}", toproxy);
             // Create return intent
-            Intent fromproxy = this.createIntent(destinationConnectPoint, sourceConnectPoint,
+            Intent fromproxy = this.createIntent(ethPkt, ipv4Pkt, tcpPkt,
+                    destinationConnectPoint, sourceConnectPoint,
                     true, dstAddr, dstl2Addr, false, null, null);
             log.debug("Intent created fromproxy {}", fromproxy);
             // Take care of actual package
@@ -305,7 +309,8 @@ public class CdnService implements
             log.info("sending packet: {}", packet);
         }
 
-        private Intent createIntent(ConnectPoint source, ConnectPoint destination,
+        private Intent createIntent(Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
+                                    ConnectPoint source, ConnectPoint destination,
                                     boolean rewriteSource, IpAddress sourceAddr, MacAddress sourcel2Addr,
                                     boolean rewriteDestination, IpAddress destinationAddr, MacAddress destinationl2Addr) {
             log.trace("Creating Host2HostIntent to Proxy {}", source.toString() + "->" + destination.toString());
@@ -313,6 +318,7 @@ public class CdnService implements
             TrafficSelector selector = DefaultTrafficSelector.builder()
                     .matchEthType(Ethernet.TYPE_IPV4)
                     .matchIPProtocol(IPv4.PROTOCOL_TCP)
+                    .matchTcpSrc(TpPort.tpPort(tcpIn.getSourcePort()))
                     .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
                     .build();
 
@@ -345,13 +351,6 @@ public class CdnService implements
             return pointIntent;
 
         }
-
-        private Intent createIntent(ConnectPoint source, ConnectPoint destination) {
-            return createIntent(source, destination,
-                    false, null, null,
-                    false, null, null);
-        }
-
     }
 
     /**
