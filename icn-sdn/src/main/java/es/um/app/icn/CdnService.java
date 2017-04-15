@@ -318,8 +318,9 @@ public class CdnService implements
             TrafficSelector selector = DefaultTrafficSelector.builder()
                     .matchEthType(Ethernet.TYPE_IPV4)
                     .matchIPProtocol(IPv4.PROTOCOL_TCP)
-                    .matchTcpSrc(TpPort.tpPort(tcpIn.getSourcePort()))
+                    .matchIPSrc(IpPrefix.valueOf(ipIn.getSourceAddress(), 32))
                     .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
+                    .matchIPDst(IpPrefix.valueOf(ipIn.getDestinationAddress(), 32))
                     .build();
 
             TrafficTreatment treatment = null;
