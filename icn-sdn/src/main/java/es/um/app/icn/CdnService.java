@@ -42,6 +42,7 @@ import org.onosproject.net.host.HostService;
 import org.onosproject.net.intent.ConnectivityIntent;
 import org.onosproject.net.intent.HostToHostIntent;
 import org.onosproject.net.intent.Intent;
+import org.onosproject.net.intent.IntentId;
 import org.onosproject.net.intent.IntentService;
 import org.onosproject.net.intent.Key;
 import org.onosproject.net.intent.PointToPointIntent;
@@ -103,6 +104,7 @@ public class CdnService implements
 	/** We need to register with the provider to receive OF messages */
 	protected HashMap<String, Cdn> cdns;
 	protected HashMap<String, Proxy> proxies;
+	protected HashMap<IntentId, Intent> installedIntents;
 	
     private CdnPacketProcessor cdnPacketProcessor = new CdnPacketProcessor();
 
@@ -114,6 +116,7 @@ public class CdnService implements
         // Initialize our data structures
         cdns = new HashMap<String, Cdn>();
         proxies = new HashMap<String, Proxy>();
+        installedIntents = new HashMap<>();
         // Install Processor
         packetService.addProcessor(cdnPacketProcessor, PacketProcessor.director(PROCESSOR_PRIORITY));
 
@@ -123,6 +126,8 @@ public class CdnService implements
 
     @Deactivate
     public void deactivate() {
+        installedIntents.forEach( (k,v) -> intentService.withdraw(v) );
+        installedIntents.clear();
         withdrawIntercepts();
         packetService.removeProcessor(cdnPacketProcessor);
     }
