@@ -179,9 +179,9 @@ public class CdnService implements
             // TO SUPERSEED E.G, the FWD app
             // Stop processing if the packet has been handled, since we
             // can't do any more to it.
-            //            if (context.isHandled()) {
-            //                return;
-            //            }
+            if (context.isHandled()) {
+                return;
+            }
 
 
             // Only continue processing if HTTP traffic is received
@@ -296,13 +296,20 @@ public class CdnService implements
             log.debug("Intent created fromproxy {}", fromproxy);
             // Take care of actual package
             TrafficTreatment treatment = DefaultTrafficTreatment.builder()
-                    .setOutput(outport).build();
+                    .setOutput(outport)
+                    .build();
 
-            Ethernet inethpkt = (Ethernet) ethPkt.clone();
+            Ethernet inethpkt = (Ethernet) context.inPacket().parsed().clone();
             inethpkt.setDestinationMACAddress(outl2address);
-            ((IPv4)inethpkt.getPayload()).setDestinationAddress(outaddress.toString());
-            OutboundPacket packet =new DefaultOutboundPacket(
-                    indeviceId,
+            IPv4 newpayload = (IPv4) inethpkt.getPayload().clone();
+            newpayload.setDestinationAddress(outaddress.getIp4Address().toInt());
+            ((IPv4)inethpkt.getPayload()).setDestinationAddress(outaddress.getIp4Address().toInt());
+            ((IPv4)inethpkt.getPayload()).resetChecksum();
+            ((TCP)(((IPv4)inethpkt.getPayload())).getPayload()).resetChecksum();
+            log.debug("packet: {}", inethpkt);
+
+            OutboundPacket packet = new DefaultOutboundPacket(
+                    outdeviceId,
                     treatment,
                     ByteBuffer.wrap(inethpkt.serialize()));
             packetService.emit(packet);
