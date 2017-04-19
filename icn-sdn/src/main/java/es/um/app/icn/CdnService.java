@@ -307,8 +307,8 @@ public class CdnService implements
             IPv4 newpayload = (IPv4) inethpkt.getPayload().clone();
             newpayload.setDestinationAddress(outaddress.getIp4Address().toInt());
             ((IPv4)inethpkt.getPayload()).setDestinationAddress(outaddress.getIp4Address().toInt());
-            ((IPv4)inethpkt.getPayload()).resetChecksum();
             ((TCP)(((IPv4)inethpkt.getPayload())).getPayload()).resetChecksum();
+            ((IPv4)inethpkt.getPayload()).resetChecksum();
             log.debug("packet: {}", inethpkt);
 
             OutboundPacket packet = new DefaultOutboundPacket(
