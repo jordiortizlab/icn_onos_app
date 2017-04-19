@@ -149,7 +149,7 @@ public class CdnService implements
         selectorBuilder.matchEthType(Ethernet.TYPE_IPV4);
         selectorBuilder.matchIPProtocol(IPv4.PROTOCOL_TCP);
         selectorBuilder.matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT));
-        packetService.requestPackets(selectorBuilder.build(), PacketPriority.CONTROL, appId);
+        packetService.requestPackets(selectorBuilder.build(), PacketPriority.REACTIVE, appId);
         // TODO: Missing IPv6
     }
 
@@ -162,7 +162,7 @@ public class CdnService implements
         selectorBuilder.matchEthType(Ethernet.TYPE_IPV4);
         selectorBuilder.matchIPProtocol(IPv4.PROTOCOL_TCP);
         selectorBuilder.matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT));
-        packetService.cancelPackets(selectorBuilder.build(), PacketPriority.CONTROL, appId);
+        packetService.cancelPackets(selectorBuilder.build(), PacketPriority.REACTIVE, appId);
         // TODO: Missing IPv6
     }
 
@@ -187,8 +187,8 @@ public class CdnService implements
             // Only continue processing if HTTP traffic is received
             InboundPacket pkt = context.inPacket();
             Ethernet ethPkt = pkt.parsed();
-            IpAddress inAddr, dstAddr = null;
-            MacAddress dstl2Addr = null;
+            IpAddress inAddr = null, dstAddr = null;
+            MacAddress inl2Addr = null, dstl2Addr = null;
             if (!(ethPkt.getEtherType() == Ethernet.TYPE_IPV4) && !(ethPkt.getEtherType() == Ethernet.TYPE_IPV6)) {
                 log.trace("Packet is not IPv4 neither v6, ignoring");
                 return;
@@ -200,6 +200,7 @@ public class CdnService implements
                 inAddr = IpAddress.valueOf(ipv4Pkt.getSourceAddress());
                 dstAddr = IpAddress.valueOf(ipv4Pkt.getDestinationAddress());
                 dstl2Addr = ethPkt.getDestinationMAC();
+                inl2Addr = ethPkt.getSourceMAC();
                 if (ipv4Pkt.getProtocol() != IPv4.PROTOCOL_TCP) {
                     log.trace("IPv4 Packet is not TCP, ignoring");
                     return;
@@ -285,13 +286,15 @@ public class CdnService implements
             ConnectPoint sourceConnectPoint = new ConnectPoint(indeviceId, inport);
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
             // Create intent from host to proxy
-            Intent toproxy = this.createIntent(ethPkt, ipv4Pkt, tcpPkt,
-                    sourceConnectPoint, destinationConnectPoint,
+            Intent toproxy = this.createIntent(ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
+                    ethPkt, ipv4Pkt, tcpPkt,
+                    sourceConnectPoint, destinationConnectPoint, false,
                     false, null, null, true, outaddress, outl2address);
             log.debug("Intent created toproxy {}", toproxy);
             // Create return intent
-            Intent fromproxy = this.createIntent(ethPkt, ipv4Pkt, tcpPkt,
-                    destinationConnectPoint, sourceConnectPoint,
+            Intent fromproxy = this.createIntent(ipv4Pkt.getSourceAddress(), outaddress.getIp4Address().toInt(),
+                    ethPkt, ipv4Pkt, tcpPkt,
+                    destinationConnectPoint, sourceConnectPoint, true,
                     true, dstAddr, dstl2Addr, false, null, null);
             log.debug("Intent created fromproxy {}", fromproxy);
             // Take care of actual package
@@ -316,19 +319,30 @@ public class CdnService implements
             log.info("sending packet: {}", packet);
         }
 
-        private Intent createIntent(Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
-                                    ConnectPoint source, ConnectPoint destination,
+        private Intent createIntent(int matchIpsrc, int matchIpDst, Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
+                                    ConnectPoint source, ConnectPoint destination, boolean invert,
                                     boolean rewriteSource, IpAddress sourceAddr, MacAddress sourcel2Addr,
                                     boolean rewriteDestination, IpAddress destinationAddr, MacAddress destinationl2Addr) {
             log.trace("Creating Host2HostIntent to Proxy {}", source.toString() + "->" + destination.toString());
             Key key = Key.of(source.toString() + "->" + destination.toString(), appId);
-            TrafficSelector selector = DefaultTrafficSelector.builder()
-                    .matchEthType(Ethernet.TYPE_IPV4)
-                    .matchIPProtocol(IPv4.PROTOCOL_TCP)
-                    .matchIPSrc(IpPrefix.valueOf(ipIn.getSourceAddress(), 32))
-                    .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
-                    .matchIPDst(IpPrefix.valueOf(ipIn.getDestinationAddress(), 32))
-                    .build();
+            TrafficSelector selector = null;
+            if (!invert) {
+                selector = DefaultTrafficSelector.builder()
+                        .matchEthType(Ethernet.TYPE_IPV4)
+                        .matchIPProtocol(IPv4.PROTOCOL_TCP)
+                        .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
+                        .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
+                        .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
+                        .build();
+            } else {
+                selector = DefaultTrafficSelector.builder()
+                        .matchEthType(Ethernet.TYPE_IPV4)
+                        .matchIPProtocol(IPv4.PROTOCOL_TCP)
+                        .matchIPDst(IpPrefix.valueOf(matchIpsrc, 32))
+                        .matchTcpSrc(TpPort.tpPort(UtilCdn.HTTP_PORT))
+                        .matchIPSrc(IpPrefix.valueOf(matchIpDst, 32))
+                        .build();
+            }
 
             TrafficTreatment treatment = null;
             if (!rewriteSource && ! rewriteDestination) {
