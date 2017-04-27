@@ -21,6 +21,7 @@ curl -u karaf:karaf -X GET http:///$CONTROLLER/onos/icn/caches\?name=LocalCDN4Te
 echo ""
 
 curl -u karaf:karaf -X POST --data @datalocal/providerlxc.json --header 'Content-Type: application/json' http:///$CONTROLLER/onos/icn/provider\?name=LocalCDN4Testing\&cname=lxchost2
+#curl -u karaf:karaf -X POST --data @datalocal/providerplexp.json --header 'Content-Type: application/json' http:///$CONTROLLER/onos/icn/provider\?name=LocalCDN4Testing\&cname=plexp
 curl -u karaf:karaf -X GET http:///$CONTROLLER/onos/icn/providers\?name=LocalCDN4Testing
 echo ""
 

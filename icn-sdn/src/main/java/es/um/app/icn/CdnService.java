@@ -26,6 +26,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.common.collect.Lists;
 import org.apache.felix.scr.annotations.*;
 import org.onlab.packet.*;
 import org.onosproject.core.ApplicationId;
@@ -74,6 +75,7 @@ public class CdnService implements
     protected static final int PROCESSOR_PRIORITY = 2;
     protected static final int INTENT_PRIORITY_HIGH = 3000;
     protected static final int INTENT_PRIORITY_LOW = 100;
+    protected static final int DEFAULT_FLOW_TIMEOUT = 100;
 
     /** Onos Services */
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
@@ -285,18 +287,18 @@ public class CdnService implements
             // Using Intent for path creation
             ConnectPoint sourceConnectPoint = new ConnectPoint(indeviceId, inport);
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
-            // Create intent from host to proxy
-            Intent toproxy = this.createIntent(ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
+            // Create path from host to proxy
+            boolean toproxy = this.createPath(ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(), true,
                     ethPkt, ipv4Pkt, tcpPkt,
                     sourceConnectPoint, destinationConnectPoint, false,
-                    false, null, null, true, outaddress, outl2address);
-            log.debug("Intent created toproxy {}", toproxy);
+                    null, null, true, outaddress, outl2address);
+            log.info("Path created toproxy {}", toproxy);
             // Create return intent
-            Intent fromproxy = this.createIntent(ipv4Pkt.getSourceAddress(), outaddress.getIp4Address().toInt(),
+            boolean fromproxy = this.createPath(outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(), false,
                     ethPkt, ipv4Pkt, tcpPkt,
                     destinationConnectPoint, sourceConnectPoint, true,
-                    true, dstAddr, dstl2Addr, false, null, null);
-            log.debug("Intent created fromproxy {}", fromproxy);
+                    dstAddr, dstl2Addr, false, null, null);
+            log.info("Path created fromproxy {}", fromproxy);
             // Take care of actual package
             TrafficTreatment treatment = DefaultTrafficTreatment.builder()
                     .setOutput(outport)
@@ -307,8 +309,8 @@ public class CdnService implements
             IPv4 newpayload = (IPv4) inethpkt.getPayload().clone();
             newpayload.setDestinationAddress(outaddress.getIp4Address().toInt());
             ((IPv4)inethpkt.getPayload()).setDestinationAddress(outaddress.getIp4Address().toInt());
-            ((TCP)(((IPv4)inethpkt.getPayload())).getPayload()).resetChecksum();
             ((IPv4)inethpkt.getPayload()).resetChecksum();
+            ((TCP)(((IPv4)inethpkt.getPayload())).getPayload()).resetChecksum();
             log.debug("packet: {}", inethpkt);
 
             OutboundPacket packet = new DefaultOutboundPacket(
@@ -319,36 +321,82 @@ public class CdnService implements
             log.info("sending packet: {}", packet);
         }
 
-        private Intent createIntent(int matchIpsrc, int matchIpDst, Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
-                                    ConnectPoint source, ConnectPoint destination, boolean invert,
-                                    boolean rewriteSource, IpAddress sourceAddr, MacAddress sourcel2Addr,
-                                    boolean rewriteDestination, IpAddress destinationAddr, MacAddress destinationl2Addr) {
-            log.trace("Creating Host2HostIntent to Proxy {}", source.toString() + "->" + destination.toString());
-            Key key = Key.of(source.toString() + "->" + destination.toString(), appId);
-            TrafficSelector selector = null;
-            if (!invert) {
-                selector = DefaultTrafficSelector.builder()
-                        .matchEthType(Ethernet.TYPE_IPV4)
-                        .matchIPProtocol(IPv4.PROTOCOL_TCP)
-                        .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
-                        .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
-                        .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
-                        .build();
+        private boolean createPath(int matchIpsrc, int matchIpDst, boolean matchPortDst, Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
+                                   ConnectPoint source, ConnectPoint destination,
+                                   boolean rewriteSource, IpAddress sourceAddr, MacAddress sourcel2Addr,
+                                   boolean rewriteDestination, IpAddress destinationAddr, MacAddress destinationl2Addr) {
+            log.info("Creating path {} {} ", source, destination);
+            PortNumber sourceport = source.port();
+            PortNumber destinationport = destination.port();
+
+            TrafficSelector.Builder trafficSelectorBuilder = DefaultTrafficSelector.builder()
+                    .matchEthType(Ethernet.TYPE_IPV4)
+                    .matchIPProtocol(IPv4.PROTOCOL_TCP);
+            if (matchPortDst) {
+                trafficSelectorBuilder
+                        .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT));
             } else {
-                selector = DefaultTrafficSelector.builder()
-                        .matchEthType(Ethernet.TYPE_IPV4)
-                        .matchIPProtocol(IPv4.PROTOCOL_TCP)
-                        .matchIPDst(IpPrefix.valueOf(matchIpsrc, 32))
-                        .matchTcpSrc(TpPort.tpPort(UtilCdn.HTTP_PORT))
-                        .matchIPSrc(IpPrefix.valueOf(matchIpDst, 32))
-                        .build();
+                trafficSelectorBuilder
+                        .matchTcpSrc(TpPort.tpPort(UtilCdn.HTTP_PORT));
             }
 
-            TrafficTreatment treatment = null;
-            if (!rewriteSource && ! rewriteDestination) {
-                treatment = DefaultTrafficTreatment.emptyTreatment();
-            } else {
+            if (!source.deviceId().equals(destination.deviceId())) {
+
+                Set<DisjointPath> disjointPaths = pathService.getDisjointPaths(source.elementId(), destination.elementId());
+                if (disjointPaths.isEmpty()) {
+                    log.error("Unable to locate any path");
+                    return false;
+                }
+
+
+                Iterator<DisjointPath> iterator = disjointPaths.iterator();
+                if (iterator.hasNext()) {
+                    DisjointPath path = iterator.next(); // Get one path
+                    for (Link link : path.links()) {
+                        destinationport = link.src().port();
+                        log.info("Treating link {} for device {} inport {} outport {}",
+                                link, link.src().deviceId(), sourceport, destinationport);
+                        TrafficSelector selector = trafficSelectorBuilder
+                                .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
+                                .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
+                                .matchInPort(sourceport)
+                                .build();
+
+
+                        TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
+                        builder.setOutput(destinationport);
+                        TrafficTreatment treatment = builder.build();
+
+                        ForwardingObjective.Builder fobuilder = DefaultForwardingObjective.builder()
+                                .withSelector(selector)
+                                .withTreatment(treatment)
+                                .withPriority(INTENT_PRIORITY_HIGH)
+                                .makeTemporary(DEFAULT_FLOW_TIMEOUT)
+                                .fromApp(appId)
+                                .withFlag(ForwardingObjective.Flag.SPECIFIC);
+                        flowObjectiveService.forward(link.src().deviceId(), fobuilder.add());
+                        log.info("Preparing path: {}", fobuilder);
+                        sourceport = link.dst().port();
+                    }
+                }
+                // Now we need to treat last jump
+                if (source.deviceId().equals(destination.deviceId())) {
+                    log.info("Same device");
+                    sourceport = source.port();
+                }
+                destinationport = destination.port();
+                TrafficSelector selector = trafficSelectorBuilder
+                        .matchInPort(sourceport)
+                        .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
+                        .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
+                        .build();
+
+                TrafficTreatment treatment = null;
+
+
+
                 TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
+                builder.setOutput(destinationport);
                 if (rewriteSource) {
                     builder.setIpSrc(sourceAddr);
                     builder.setEthSrc(sourcel2Addr);
@@ -357,22 +405,20 @@ public class CdnService implements
                     builder.setIpDst(destinationAddr);
                     builder.setEthDst(destinationl2Addr);
                 }
+
                 treatment = builder.build();
+
+                ForwardingObjective.Builder fobuilder = DefaultForwardingObjective.builder()
+                        .withSelector(selector)
+                        .withTreatment(treatment)
+                        .withPriority(INTENT_PRIORITY_HIGH)
+                        .makeTemporary(DEFAULT_FLOW_TIMEOUT)
+                        .fromApp(appId)
+                        .withFlag(ForwardingObjective.Flag.SPECIFIC);
+                flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
             }
 
-            PointToPointIntent pointIntent = PointToPointIntent.builder()
-                    .appId(appId)
-                    .key(key)
-                    .filteredIngressPoint(new FilteredConnectPoint(source))
-                    .filteredEgressPoint(new FilteredConnectPoint(destination))
-                    .selector(selector)
-                    .treatment(treatment)
-                    .priority(INTENT_PRIORITY_HIGH)
-                    .build();
-            intentService.submit(pointIntent);
-            installedIntents.put(pointIntent.id(), pointIntent);
-            return pointIntent;
-
+            return true;
         }
     }
 
@@ -543,8 +589,6 @@ public class CdnService implements
         for (Host host : hostsByMac) {
             mboxhost = host;
         }
-
-
 
         HostToHostIntent hostIntent = HostToHostIntent.builder()
                 .appId(appId)
