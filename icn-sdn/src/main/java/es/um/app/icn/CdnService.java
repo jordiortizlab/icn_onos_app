@@ -219,6 +219,7 @@ public class CdnService implements
             }
 
             log.debug("ICN Process PACKET_IN from switch {}", context.inPacket().receivedFrom().toString());
+            log.debug("{}", ethPkt);
             DeviceId indeviceId = context.inPacket().receivedFrom().deviceId();
             PortNumber inport = context.inPacket().receivedFrom().port();
 
@@ -325,7 +326,9 @@ public class CdnService implements
                                    ConnectPoint source, ConnectPoint destination,
                                    boolean rewriteSource, IpAddress sourceAddr, MacAddress sourcel2Addr,
                                    boolean rewriteDestination, IpAddress destinationAddr, MacAddress destinationl2Addr) {
-            log.info("Creating path {} {} ", source, destination);
+            log.debug("Creating path matchIpSrc {} matchIpDst {} matchPorDst {} source {} destination {} ", matchIpsrc, matchIpDst, matchPortDst, source, destination);
+            log.debug("rewriteSource {} {} {}", rewriteSource, sourceAddr, sourcel2Addr);
+            log.debug("rewriteDestination {} {} {}", rewriteDestination, destinationAddr, destinationl2Addr);
             PortNumber sourceport = source.port();
             PortNumber destinationport = destination.port();
 
@@ -375,7 +378,7 @@ public class CdnService implements
                                 .fromApp(appId)
                                 .withFlag(ForwardingObjective.Flag.SPECIFIC);
                         flowObjectiveService.forward(link.src().deviceId(), fobuilder.add());
-                        log.info("Preparing path: {}", fobuilder);
+                        log.info("Preparing path: {} {}", selector, treatment);
                         sourceport = link.dst().port();
                     }
                 }
@@ -416,6 +419,7 @@ public class CdnService implements
                         .fromApp(appId)
                         .withFlag(ForwardingObjective.Flag.SPECIFIC);
                 flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
+                log.info("Preparing final jump: {} {}", selector, treatment);
             }
 
             return true;
