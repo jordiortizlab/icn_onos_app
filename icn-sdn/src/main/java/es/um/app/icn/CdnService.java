@@ -402,7 +402,6 @@ public class CdnService implements
 
 
                 TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
-                builder.setOutput(destinationport);
 
                 if (rewriteSourceIP) {
                     builder.setIpSrc(sourceAddr);
@@ -420,7 +419,7 @@ public class CdnService implements
                     builder.setEthDst(destinationl2Addr);
                     builder.immediate();
                 }
-
+                builder.setOutput(destinationport);
                 treatment = builder.build();
 
                 ForwardingObjective.Builder fobuilder = DefaultForwardingObjective.builder()
