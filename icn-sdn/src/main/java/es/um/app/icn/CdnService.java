@@ -348,17 +348,16 @@ public class CdnService implements
             }
 
             if (!source.deviceId().equals(destination.deviceId())) {
-
-                Set<DisjointPath> disjointPaths = pathService.getDisjointPaths(source.elementId(), destination.elementId());
-                if (disjointPaths.isEmpty()) {
+                Set<Path> paths = pathService.getPaths(source.elementId(), destination.elementId());
+                if (paths.isEmpty()) {
                     log.error("Unable to locate any path");
                     return false;
                 }
 
 
-                Iterator<DisjointPath> iterator = disjointPaths.iterator();
+                Iterator<Path> iterator = paths.iterator();
                 if (iterator.hasNext()) {
-                    DisjointPath path = iterator.next(); // Get one path
+                    Path path = iterator.next(); // Get one path
                     for (Link link : path.links()) {
                         destinationport = link.src().port();
                         log.info("Treating link {} for device {} inport {} outport {}",
