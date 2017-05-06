@@ -218,6 +218,11 @@ public class CdnService implements
                 return;
             }
 
+            if((tcpPkt.getFlags() & 0x2) == 0x0) {
+                log.debug("Packet is not TCP SYN: {}", ethPkt);
+                return;
+            }
+
             log.debug("ICN Process PACKET_IN from switch {}", context.inPacket().receivedFrom().toString());
             log.debug("{}", ethPkt);
             DeviceId indeviceId = context.inPacket().receivedFrom().deviceId();
