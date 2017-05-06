@@ -406,15 +406,19 @@ public class CdnService implements
 
                 if (rewriteSourceIP) {
                     builder.setIpSrc(sourceAddr);
+                    builder.immediate();
                 }
                 if (rewriteSourceMAC) {
                     builder.setEthSrc(sourcel2Addr);
+                    builder.immediate();
                 }
                 if (rewriteDestinationIP) {
                     builder.setIpDst(destinationAddr);
+                    builder.immediate();
                 }
                 if(rewriteDestinationMAC) {
                     builder.setEthDst(destinationl2Addr);
+                    builder.immediate();
                 }
 
                 treatment = builder.build();
