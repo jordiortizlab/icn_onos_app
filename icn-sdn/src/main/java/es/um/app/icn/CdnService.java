@@ -685,7 +685,7 @@ public class CdnService implements
             Topology topology = topologyService.currentTopology();
             log.info("Paths in topology: {}", topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId)));
 
-            Set<Path> paths = topologyService.getPaths(topologyService.currentTopology(), sw, DeviceId.deviceId(mboxDeviceId));
+            Set<Path> paths = topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId));
             if (sw.toString().equals(mboxDeviceId))
             {
                 // Middlebox and host on the same device. No path needed. No need to look for best path.
