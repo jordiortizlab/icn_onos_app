@@ -294,13 +294,13 @@ public class CdnService implements
             boolean toproxy = this.createPath(ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(), true,
                     ethPkt, ipv4Pkt, tcpPkt,
                     sourceConnectPoint, destinationConnectPoint, false,
-                    null, null, true, outaddress, outl2address);
+                    null, false, null, true, outaddress, true, outl2address);
             log.info("Path created toproxy {}", toproxy);
             // Create return intent
             boolean fromproxy = this.createPath(outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(), false,
                     ethPkt, ipv4Pkt, tcpPkt,
                     destinationConnectPoint, sourceConnectPoint, true,
-                    dstAddr, dstl2Addr, false, null, null);
+                    dstAddr, false, dstl2Addr, false, null, false, null);
             log.info("Path created fromproxy {}", fromproxy);
             // Take care of actual package
             TrafficTreatment treatment = DefaultTrafficTreatment.builder()
@@ -326,11 +326,13 @@ public class CdnService implements
 
         private boolean createPath(int matchIpsrc, int matchIpDst, boolean matchPortDst, Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
                                    ConnectPoint source, ConnectPoint destination,
-                                   boolean rewriteSource, IpAddress sourceAddr, MacAddress sourcel2Addr,
-                                   boolean rewriteDestination, IpAddress destinationAddr, MacAddress destinationl2Addr) {
+                                   boolean rewriteSourceIP, IpAddress sourceAddr,
+                                   boolean rewriteSourceMAC, MacAddress sourcel2Addr,
+                                   boolean rewriteDestinationIP, IpAddress destinationAddr,
+                                   boolean rewriteDestinationMAC, MacAddress destinationl2Addr) {
             log.debug("Creating path matchIpSrc {} matchIpDst {} matchPorDst {} source {} destination {} ", matchIpsrc, matchIpDst, matchPortDst, source, destination);
-            log.debug("rewriteSource {} {} {}", rewriteSource, sourceAddr, sourcel2Addr);
-            log.debug("rewriteDestination {} {} {}", rewriteDestination, destinationAddr, destinationl2Addr);
+            log.debug("rewriteSource {} {} {}", rewriteSourceIP, sourceAddr, sourcel2Addr);
+            log.debug("rewriteDestination {} {} {}", rewriteDestinationIP, destinationAddr, destinationl2Addr);
             PortNumber sourceport = source.port();
             PortNumber destinationport = destination.port();
 
@@ -402,12 +404,17 @@ public class CdnService implements
 
                 TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
                 builder.setOutput(destinationport);
-                if (rewriteSource) {
+
+                if (rewriteSourceIP) {
                     builder.setIpSrc(sourceAddr);
+                }
+                if (rewriteSourceMAC) {
                     builder.setEthSrc(sourcel2Addr);
                 }
-                if (rewriteDestination) {
+                if (rewriteDestinationIP) {
                     builder.setIpDst(destinationAddr);
+                }
+                if(rewriteDestinationMAC) {
                     builder.setEthDst(destinationl2Addr);
                 }
 
