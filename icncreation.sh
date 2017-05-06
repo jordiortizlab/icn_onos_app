@@ -20,7 +20,7 @@ curl -u karaf:karaf -X POST --data @data/cache1.json --header 'Content-Type: app
 curl -u karaf:karaf -X GET http:///$CONTROLLER/onos/icn/caches\?name=vplocan
 echo ""
 
-curl -u karaf:karaf -X POST --data @data/providerplexp.json --header 'Content-Type: application/json' http:///$CONTROLLER/onos/icn/provider\?name=vplocan\&cname=plexp
+curl -u karaf:karaf -X POST --data @data/providerwithinicn.json --header 'Content-Type: application/json' http:///$CONTROLLER/onos/icn/provider\?name=vplocan\&cname=within
 curl -u karaf:karaf -X GET http:///$CONTROLLER/onos/icn/providers\?name=vplocan
 echo ""
 
