@@ -14,8 +14,6 @@ public class CdnFlowCodec extends JsonCodec<CdnFlow> {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     private static final String SMAC_FIELD = "smac";
-    private static final String DMAC_FIELD = "dmac";
-    private static final String DLTYPE_FIELD = "dltype";
     private static final String SADDR_FIELD = "saddr";
     private static final String DADDR_FIELD = "daddr";
     private static final String PROTO_FIELD = "proto";
@@ -28,8 +26,6 @@ public class CdnFlowCodec extends JsonCodec<CdnFlow> {
             throw new NullPointerException("CdnFlow was null when jsonizing");
         ObjectNode result = context.mapper().createObjectNode()
                 .put(SMAC_FIELD, cdnFlow.getSmac())
-                .put(DMAC_FIELD, cdnFlow.getDmac())
-                .put(DLTYPE_FIELD, cdnFlow.getDltype())
                 .put(SADDR_FIELD, cdnFlow.getSaddr())
                 .put(DADDR_FIELD, cdnFlow.getDaddr())
                 .put(PROTO_FIELD, cdnFlow.getProto())
@@ -42,8 +38,6 @@ public class CdnFlowCodec extends JsonCodec<CdnFlow> {
     public CdnFlow decode(ObjectNode json, CodecContext context) {
         CdnFlow cdnFlow = new CdnFlow();
         cdnFlow.setSmac(json.get(SMAC_FIELD).asText());
-        cdnFlow.setDmac(json.get(DMAC_FIELD).asText());
-        cdnFlow.setDltype(json.get(DLTYPE_FIELD).asText());
         cdnFlow.setSaddr(json.get(SADDR_FIELD).asText());
         cdnFlow.setDaddr(json.get(DADDR_FIELD).asText());
         cdnFlow.setProto(json.get(PROTO_FIELD).asText());
