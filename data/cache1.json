@@ -1,1 +1,1 @@
-{ "name" : "squid01", "description" : "Web cache in MATHS@Elrond", "macaddr" : "52:54:00:9E:90:58" }
+{ "name" : "squid01", "description" : "Web cache in MATHS@Elrond", "macaddr" : "02:eb:72:00:00:04", "ipaddr" : "10.207.10.102", "location" : { "dpid" : "of:000a645106c87400", "port" : "4" } }
