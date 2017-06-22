@@ -168,6 +168,121 @@ public class CdnService implements
         // TODO: Missing IPv6
     }
 
+    protected static boolean createPath(ApplicationId appId, PathService pathService, FlowObjectiveService flowObjectiveService,
+                                        int matchIpsrc, int matchIpDst, boolean matchPortSrc, short srcport, boolean matchPortDst, short dstport,
+                                        Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
+                                        ConnectPoint source, ConnectPoint destination,
+                                        boolean rewriteSourceIP, IpAddress sourceAddr,
+                                        boolean rewriteSourceMAC, MacAddress sourcel2Addr,
+                                        boolean rewriteDestinationIP, IpAddress destinationAddr,
+                                        boolean rewriteDestinationMAC, MacAddress destinationl2Addr) {
+        log.debug("Creating path matchIpSrc {} matchIpDst {} matchPorDst {} source {} destination {} ", matchIpsrc, matchIpDst, matchPortDst, source, destination);
+        log.debug("rewriteSource {} {} {}", rewriteSourceIP, sourceAddr, sourcel2Addr);
+        log.debug("rewriteDestination {} {} {}", rewriteDestinationIP, destinationAddr, destinationl2Addr);
+        PortNumber sourceport = source.port();
+        PortNumber destinationport = destination.port();
+
+        TrafficSelector.Builder trafficSelectorBuilder = DefaultTrafficSelector.builder()
+                .matchEthType(Ethernet.TYPE_IPV4)
+                .matchIPProtocol(IPv4.PROTOCOL_TCP);
+        if (matchPortDst) {
+            trafficSelectorBuilder
+                    .matchTcpDst(TpPort.tpPort(dstport));
+        }
+        if (matchPortSrc) {
+            trafficSelectorBuilder
+                    .matchTcpSrc(TpPort.tpPort(srcport));
+        }
+
+        if (!source.deviceId().equals(destination.deviceId())) {
+            Set<Path> paths = pathService.getPaths(source.elementId(), destination.elementId());
+            if (paths.isEmpty()) {
+                log.error("Unable to locate any path");
+                return false;
+            }
+
+
+            Iterator<Path> iterator = paths.iterator();
+            if (iterator.hasNext()) {
+                Path path = iterator.next(); // Get one path
+                for (Link link : path.links()) {
+                    destinationport = link.src().port();
+                    log.info("Treating link {} for device {} inport {} outport {}",
+                            link, link.src().deviceId(), sourceport, destinationport);
+                    TrafficSelector selector = trafficSelectorBuilder
+                            .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
+                            .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
+                            .matchInPort(sourceport)
+                            .build();
+
+
+                    TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
+                    builder.setOutput(destinationport);
+                    TrafficTreatment treatment = builder.build();
+
+                    ForwardingObjective.Builder fobuilder = DefaultForwardingObjective.builder()
+                            .withSelector(selector)
+                            .withTreatment(treatment)
+                            .withPriority(INTENT_PRIORITY_HIGH)
+                            .makeTemporary(DEFAULT_FLOW_TIMEOUT)
+                            .fromApp(appId)
+                            .withFlag(ForwardingObjective.Flag.SPECIFIC);
+                    flowObjectiveService.forward(link.src().deviceId(), fobuilder.add());
+                    log.info("Preparing path: {} {}", selector, treatment);
+                    sourceport = link.dst().port();
+                }
+            }
+            // Now we need to treat last jump
+            if (source.deviceId().equals(destination.deviceId())) {
+                log.info("Same device");
+                sourceport = source.port();
+            }
+            destinationport = destination.port();
+            TrafficSelector selector = trafficSelectorBuilder
+                    .matchInPort(sourceport)
+                    .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
+                    .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
+                    .build();
+
+            TrafficTreatment treatment = null;
+
+
+
+            TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
+
+            if (rewriteSourceIP) {
+                builder.setIpSrc(sourceAddr);
+                builder.immediate();
+            }
+            if (rewriteSourceMAC) {
+                builder.setEthSrc(sourcel2Addr);
+                builder.immediate();
+            }
+            if (rewriteDestinationIP) {
+                builder.setIpDst(destinationAddr);
+                builder.immediate();
+            }
+            if(rewriteDestinationMAC) {
+                builder.setEthDst(destinationl2Addr);
+                builder.immediate();
+            }
+            builder.setOutput(destinationport);
+            treatment = builder.build();
+
+            ForwardingObjective.Builder fobuilder = DefaultForwardingObjective.builder()
+                    .withSelector(selector)
+                    .withTreatment(treatment)
+                    .withPriority(INTENT_PRIORITY_HIGH)
+                    .makeTemporary(DEFAULT_FLOW_TIMEOUT)
+                    .fromApp(appId)
+                    .withFlag(ForwardingObjective.Flag.SPECIFIC);
+            flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
+            log.info("Preparing final jump: {} {}", selector, treatment);
+        }
+
+        return true;
+    }
+
     private class CdnPacketProcessor implements PacketProcessor {
 
         @Override
@@ -327,118 +442,6 @@ public class CdnService implements
                     ByteBuffer.wrap(inethpkt.serialize()));
             packetService.emit(packet);
             log.info("sending packet: {}", packet);
-        }
-
-        private boolean createPath(int matchIpsrc, int matchIpDst, boolean matchPortDst, Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
-                                   ConnectPoint source, ConnectPoint destination,
-                                   boolean rewriteSourceIP, IpAddress sourceAddr,
-                                   boolean rewriteSourceMAC, MacAddress sourcel2Addr,
-                                   boolean rewriteDestinationIP, IpAddress destinationAddr,
-                                   boolean rewriteDestinationMAC, MacAddress destinationl2Addr) {
-            log.debug("Creating path matchIpSrc {} matchIpDst {} matchPorDst {} source {} destination {} ", matchIpsrc, matchIpDst, matchPortDst, source, destination);
-            log.debug("rewriteSource {} {} {}", rewriteSourceIP, sourceAddr, sourcel2Addr);
-            log.debug("rewriteDestination {} {} {}", rewriteDestinationIP, destinationAddr, destinationl2Addr);
-            PortNumber sourceport = source.port();
-            PortNumber destinationport = destination.port();
-
-            TrafficSelector.Builder trafficSelectorBuilder = DefaultTrafficSelector.builder()
-                    .matchEthType(Ethernet.TYPE_IPV4)
-                    .matchIPProtocol(IPv4.PROTOCOL_TCP);
-            if (matchPortDst) {
-                trafficSelectorBuilder
-                        .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT));
-            } else {
-                trafficSelectorBuilder
-                        .matchTcpSrc(TpPort.tpPort(UtilCdn.HTTP_PORT));
-            }
-
-            if (!source.deviceId().equals(destination.deviceId())) {
-                Set<Path> paths = pathService.getPaths(source.elementId(), destination.elementId());
-                if (paths.isEmpty()) {
-                    log.error("Unable to locate any path");
-                    return false;
-                }
-
-
-                Iterator<Path> iterator = paths.iterator();
-                if (iterator.hasNext()) {
-                    Path path = iterator.next(); // Get one path
-                    for (Link link : path.links()) {
-                        destinationport = link.src().port();
-                        log.info("Treating link {} for device {} inport {} outport {}",
-                                link, link.src().deviceId(), sourceport, destinationport);
-                        TrafficSelector selector = trafficSelectorBuilder
-                                .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
-                                .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
-                                .matchInPort(sourceport)
-                                .build();
-
-
-                        TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
-                        builder.setOutput(destinationport);
-                        TrafficTreatment treatment = builder.build();
-
-                        ForwardingObjective.Builder fobuilder = DefaultForwardingObjective.builder()
-                                .withSelector(selector)
-                                .withTreatment(treatment)
-                                .withPriority(INTENT_PRIORITY_HIGH)
-                                .makeTemporary(DEFAULT_FLOW_TIMEOUT)
-                                .fromApp(appId)
-                                .withFlag(ForwardingObjective.Flag.SPECIFIC);
-                        flowObjectiveService.forward(link.src().deviceId(), fobuilder.add());
-                        log.info("Preparing path: {} {}", selector, treatment);
-                        sourceport = link.dst().port();
-                    }
-                }
-                // Now we need to treat last jump
-                if (source.deviceId().equals(destination.deviceId())) {
-                    log.info("Same device");
-                    sourceport = source.port();
-                }
-                destinationport = destination.port();
-                TrafficSelector selector = trafficSelectorBuilder
-                        .matchInPort(sourceport)
-                        .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
-                        .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
-                        .build();
-
-                TrafficTreatment treatment = null;
-
-
-
-                TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
-
-                if (rewriteSourceIP) {
-                    builder.setIpSrc(sourceAddr);
-                    builder.immediate();
-                }
-                if (rewriteSourceMAC) {
-                    builder.setEthSrc(sourcel2Addr);
-                    builder.immediate();
-                }
-                if (rewriteDestinationIP) {
-                    builder.setIpDst(destinationAddr);
-                    builder.immediate();
-                }
-                if(rewriteDestinationMAC) {
-                    builder.setEthDst(destinationl2Addr);
-                    builder.immediate();
-                }
-                builder.setOutput(destinationport);
-                treatment = builder.build();
-
-                ForwardingObjective.Builder fobuilder = DefaultForwardingObjective.builder()
-                        .withSelector(selector)
-                        .withTreatment(treatment)
-                        .withPriority(INTENT_PRIORITY_HIGH)
-                        .makeTemporary(DEFAULT_FLOW_TIMEOUT)
-                        .fromApp(appId)
-                        .withFlag(ForwardingObjective.Flag.SPECIFIC);
-                flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
-                log.info("Preparing final jump: {} {}", selector, treatment);
-            }
-
-            return true;
         }
     }
 
