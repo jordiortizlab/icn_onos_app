@@ -624,16 +624,30 @@ public class CdnService implements
             mboxhost = host;
         }
 
-        HostToHostIntent hostIntent = HostToHostIntent.builder()
-                .appId(appId)
-                .key(key)
-                .one(origin.hostId())
-                .two(mboxhost.id())
-                .selector(selector)
-                .treatment(treatment)
-                .priority(INTENT_PRIORITY_HIGH)
-                .build();
-        intentService.submit(hostIntent);
+        createPath(appId, pathService, flowObjectiveService,
+                IpPrefix.valueOf(originalreq.saddr).getIp4Prefix().address().toInt(),
+                IpPrefix.valueOf(originalreq.daddr).getIp4Prefix().address().toInt(),
+                false, (short) 0, true, UtilCdn.HTTP_PORT,
+                null, null, null,
+                new ConnectPoint(origin.deviceId(), origin.port()),
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                false, null,
+false,null,
+                false, null,
+false, null);
+
+        createPath(appId, pathService, flowObjectiveService,
+                IpPrefix.valueOf(originalreq.daddr).getIp4Prefix().address().toInt(),
+                IpPrefix.valueOf(originalreq.saddr).getIp4Prefix().address().toInt(),
+                true, UtilCdn.HTTP_PORT, false, (short) 0,
+                null, null, null,
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                new ConnectPoint(origin.deviceId(), origin.port()),
+                false, null,
+                false,null,
+                false, null,
+                false, null);
+
         return true;
 	}
 	
