@@ -411,13 +411,17 @@ public class CdnService implements
             ConnectPoint sourceConnectPoint = new ConnectPoint(indeviceId, inport);
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
             // Create path from host to proxy
-            boolean toproxy = this.createPath(ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(), true,
+            boolean toproxy = CdnService.createPath(appId, pathService, flowObjectiveService,
+                    ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
+                    false, (short)0,true, UtilCdn.HTTP_PORT,
                     ethPkt, ipv4Pkt, tcpPkt,
                     sourceConnectPoint, destinationConnectPoint, false,
                     null, false, null, true, outaddress, true, outl2address);
             log.info("Path created toproxy {}", toproxy);
             // Create return intent
-            boolean fromproxy = this.createPath(outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(), false,
+            boolean fromproxy = CdnService.createPath(appId, pathService, flowObjectiveService,
+                    outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(),
+                    true, UtilCdn.HTTP_PORT,false, (short) 0,
                     ethPkt, ipv4Pkt, tcpPkt,
                     destinationConnectPoint, sourceConnectPoint, true,
                     dstAddr, false, dstl2Addr, false, null, false, null);
