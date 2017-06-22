@@ -579,8 +579,11 @@ public class CdnService implements
 						if (foundCache) {
 							log.info("Program path to cache {} flow {}",
 									cache.name, req.flow.toString());
-                            HostToHostIntent hostToHostIntent = programPath(location, cache);
-                            log.info("Created intent {}", hostToHostIntent.toString());
+                            if (programPath(req.flow, location, cache)) {
+                                log.info("Created path from proxy to cache");
+                            } else {
+                                log.error("Unable to create path from proxy to cache");
+                            }
                         }
 						return;
 					}
@@ -596,8 +599,8 @@ public class CdnService implements
 	 * @param mbox Middlebox where the flow is directed.
 	 * @return Ouput port that must be used by the input switch.
 	 */
-	private HostToHostIntent programPath(HostLocation origin, IMiddlebox mbox) {
-        log.trace("Creating Host2HostIntent for middlebox {} -> {}", origin.toString(), mbox.getLocation().toString());
+	private boolean programPath(CdnFlow originalreq, HostLocation origin, IMiddlebox mbox) {
+        log.debug("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
         Key key = Key.of(origin.toString() + "->" + mbox.toString(), appId);
         TrafficSelector selector = DefaultTrafficSelector.builder()
                 .matchEthType(Ethernet.TYPE_IPV4)
@@ -609,8 +612,12 @@ public class CdnService implements
         Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(mbox.getMacaddr()));
         if (hostsByMac.size() != 1)
         {
-            log.error("Unexpected number of hosts for the same mac {}", mbox.getMacaddr());
-            return null;
+            if (hostsByMac.size() > 1) {
+                log.error("Unexpected number of hosts for the same mac {}. Too many hosts", mbox.getMacaddr());
+            } else {
+                log.error("Unexpected number of hosts for the same mac {}. NO HOST", mbox.getMacaddr());
+            }
+            return false;
         }
         Host mboxhost = null;
         for (Host host : hostsByMac) {
@@ -627,7 +634,7 @@ public class CdnService implements
                 .priority(INTENT_PRIORITY_HIGH)
                 .build();
         intentService.submit(hostIntent);
-        return hostIntent;
+        return true;
 	}
 	
 	private CdnFlow reverseFlow(CdnFlow flow) {
