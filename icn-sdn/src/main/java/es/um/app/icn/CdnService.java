@@ -601,14 +601,6 @@ public class CdnService implements
 	 */
 	private boolean programPath(CdnFlow originalreq, HostLocation origin, IMiddlebox mbox) {
         log.debug("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
-        Key key = Key.of(origin.toString() + "->" + mbox.toString(), appId);
-        TrafficSelector selector = DefaultTrafficSelector.builder()
-                .matchEthType(Ethernet.TYPE_IPV4)
-                .matchIPProtocol(IPv4.PROTOCOL_TCP)
-                .matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT))
-                .build();
-        TrafficTreatment treatment = DefaultTrafficTreatment.emptyTreatment();
-
         Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(mbox.getMacaddr()));
         if (hostsByMac.size() != 1)
         {
