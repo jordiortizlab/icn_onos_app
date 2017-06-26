@@ -172,13 +172,15 @@ public class CdnService implements
                                         int matchIpsrc, int matchIpDst, boolean matchPortSrc, short srcport, boolean matchPortDst, short dstport,
                                         Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
                                         ConnectPoint source, ConnectPoint destination,
-                                        boolean rewriteSourceIP, IpAddress sourceAddr,
-                                        boolean rewriteSourceMAC, MacAddress sourcel2Addr,
-                                        boolean rewriteDestinationIP, IpAddress destinationAddr,
-                                        boolean rewriteDestinationMAC, MacAddress destinationl2Addr) {
+                                        boolean rewriteSourceIP, IpAddress rwsourceAddr,
+                                        boolean rewriteSourceMAC, MacAddress rwsourcel2Addr,
+                                        boolean rewriteSourcePort, TpPort rwsourceport,
+                                        boolean rewriteDestinationIP, IpAddress rwdestinationAddr,
+                                        boolean rewriteDestinationMAC, MacAddress rwdestinationl2Addr,
+                                        boolean rewriteDestinationPort, TpPort rwdestport) {
         log.debug("Creating path matchIpSrc {} matchIpDst {} matchPorDst {} source {} destination {} ", matchIpsrc, matchIpDst, matchPortDst, source, destination);
-        log.debug("rewriteSource {} {} {}", rewriteSourceIP, sourceAddr, sourcel2Addr);
-        log.debug("rewriteDestination {} {} {}", rewriteDestinationIP, destinationAddr, destinationl2Addr);
+        log.debug("rewriteSource {} {} {}", rewriteSourceIP, rwsourceAddr, rwsourcel2Addr);
+        log.debug("rewriteDestination {} {} {}", rewriteDestinationIP, rwdestinationAddr, rwdestinationl2Addr);
         PortNumber sourceport = source.port();
         PortNumber destinationport = destination.port();
 
@@ -251,19 +253,27 @@ public class CdnService implements
             TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
 
             if (rewriteSourceIP) {
-                builder.setIpSrc(sourceAddr);
+                builder.setIpSrc(rwsourceAddr);
                 builder.immediate();
             }
             if (rewriteSourceMAC) {
-                builder.setEthSrc(sourcel2Addr);
+                builder.setEthSrc(rwsourcel2Addr);
+                builder.immediate();
+            }
+            if (rewriteSourcePort) {
+                builder.setTcpSrc(rwsourceport);
                 builder.immediate();
             }
             if (rewriteDestinationIP) {
-                builder.setIpDst(destinationAddr);
+                builder.setIpDst(rwdestinationAddr);
                 builder.immediate();
             }
             if(rewriteDestinationMAC) {
-                builder.setEthDst(destinationl2Addr);
+                builder.setEthDst(rwdestinationl2Addr);
+                builder.immediate();
+            }
+            if(rewriteDestinationPort) {
+                builder.setTcpDst(rwdestport);
                 builder.immediate();
             }
             builder.setOutput(destinationport);
@@ -416,7 +426,8 @@ public class CdnService implements
                     false, (short)0,true, UtilCdn.HTTP_PORT,
                     ethPkt, ipv4Pkt, tcpPkt,
                     sourceConnectPoint, destinationConnectPoint, false,
-                    null, false, null, true, outaddress, true, outl2address);
+                    null, false, null, false, null,
+                    true, outaddress, true, outl2address, false, null);
             log.info("Path created toproxy {}", toproxy);
             // Create return intent
             boolean fromproxy = CdnService.createPath(appId, pathService, flowObjectiveService,
@@ -424,7 +435,8 @@ public class CdnService implements
                     true, UtilCdn.HTTP_PORT,false, (short) 0,
                     ethPkt, ipv4Pkt, tcpPkt,
                     destinationConnectPoint, sourceConnectPoint, true,
-                    dstAddr, false, dstl2Addr, false, null, false, null);
+                    dstAddr, false, dstl2Addr, false, null,
+                    false, null, false, null, false, null);
             log.info("Path created fromproxy {}", fromproxy);
             // Take care of actual package
             TrafficTreatment treatment = DefaultTrafficTreatment.builder()
