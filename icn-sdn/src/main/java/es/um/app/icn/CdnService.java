@@ -471,11 +471,12 @@ public class CdnService implements
 				new Object[] {req.proxy, req.hostname, req.flow.toString()} );
 		
 		// Get proxy's attachment points
+        Host proxy = null;
         Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(req.getProxy()));
-        if (hostsByMac.size() != 1)
-        {
+        if (hostsByMac.size() != 1) {
             log.warn("Unexpected number of hosts for the same mac {} : {}", req.getProxy(), hostsByMac.size());
         }
+        proxy = hostsByMac.iterator().next();
         Collection<HostLocation> proxylocations = new LinkedList<>();
         for (Host host : hostsByMac) {
             proxylocations.add(host.location());
@@ -591,7 +592,7 @@ public class CdnService implements
 						if (foundCache) {
 							log.info("Program path to cache {} flow {}",
 									cache.name, req.flow.toString());
-                            if (programPath(req.flow, location, cache)) {
+                            if (programPath(req.flow, proxy, location, cache)) {
                                 log.info("Created path from proxy to cache");
                             } else {
                                 log.error("Unable to create path from proxy to cache");
@@ -611,8 +612,9 @@ public class CdnService implements
 	 * @param mbox Middlebox where the flow is directed.
 	 * @return Ouput port that must be used by the input switch.
 	 */
-	private boolean programPath(CdnFlow originalreq, HostLocation origin, IMiddlebox mbox) {
+	private boolean programPath(CdnFlow originalreq, Host proxy, HostLocation origin, IMiddlebox mbox) {
         log.debug("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
+        log.debug("Original req: {}", originalreq);
         Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(mbox.getMacaddr()));
         if (hostsByMac.size() != 1)
         {
