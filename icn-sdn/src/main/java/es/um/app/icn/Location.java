@@ -44,5 +44,12 @@ public class Location {
 	public void setPort(short port) {
 		this.port = port;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "Location{" +
+				"dpid='" + dpid + '/' +
+				", port=" + port +
+				'}';
+	}
 }

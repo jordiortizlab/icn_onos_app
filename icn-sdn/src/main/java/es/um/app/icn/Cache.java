@@ -71,5 +71,15 @@ public class Cache implements IMiddlebox {
 	public void setIpaddr(String ipaddr) {
 		this.ipaddr = ipaddr;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "Cache{" +
+				"name='" + name + '\'' +
+				", description='" + description + '\'' +
+				", location=" + location +
+				", macaddr='" + macaddr + '\'' +
+				", ipaddr='" + ipaddr + '\'' +
+				'}';
+	}
 }

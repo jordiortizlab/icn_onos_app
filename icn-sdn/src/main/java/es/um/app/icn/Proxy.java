@@ -81,5 +81,16 @@ public class Proxy implements IMiddlebox {
 	public void setType(String type) {
 		this.type = type;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "Proxy{" +
+				"name='" + name + '\'' +
+				", description='" + description + '\'' +
+				", location=" + location +
+				", macaddr='" + macaddr + '\'' +
+				", ipaddr='" + ipaddr + '\'' +
+				", type='" + type + '\'' +
+				'}';
+	}
 }
