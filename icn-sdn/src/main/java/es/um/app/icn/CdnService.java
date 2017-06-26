@@ -420,6 +420,7 @@ public class CdnService implements
             // Using Intent for path creation
             ConnectPoint sourceConnectPoint = new ConnectPoint(indeviceId, inport);
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
+            log.debug("Packet Processor creating paths");
             // Create path from host to proxy
             boolean toproxy = CdnService.createPath(appId, pathService, flowObjectiveService,
                     ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
@@ -630,9 +631,16 @@ public class CdnService implements
             mboxhost = host;
         }
 
+        log.debug("REST Request:  creating paths");
+        log.debug("origin: {}, mbox {}", origin.toString(), mbox.toString());
+        //TODO: What about ipv6??
+        int sourceprefix = proxy.ipAddresses().iterator().next().getIp4Address().toInt();
+        int destprefix = Ip4Address.valueOf(originalreq.daddr).toInt();
+        IpAddress cacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
+        log.debug("prefix origin (proxy) {} destination (provider) {}", sourceprefix, destprefix);
         createPath(appId, pathService, flowObjectiveService,
-                IpPrefix.valueOf(originalreq.saddr).getIp4Prefix().address().toInt(),
-                IpPrefix.valueOf(originalreq.daddr).getIp4Prefix().address().toInt(),
+                sourceprefix,
+                destprefix,
                 false, (short) 0, true, UtilCdn.HTTP_PORT,
                 null, null, null,
                 new ConnectPoint(origin.deviceId(), origin.port()),
@@ -640,17 +648,21 @@ public class CdnService implements
                 false, null,
 false,null,
                 false, null,
-false, null);
+                true, cacheprefix,
+true, MacAddress.valueOf(mbox.getMacaddr()),
+                true, TpPort.tpPort(3128)); //TODO: Add port to cache definition in json
 
         createPath(appId, pathService, flowObjectiveService,
-                IpPrefix.valueOf(originalreq.daddr).getIp4Prefix().address().toInt(),
-                IpPrefix.valueOf(originalreq.saddr).getIp4Prefix().address().toInt(),
-                true, UtilCdn.HTTP_PORT, false, (short) 0,
+                destprefix,
+                sourceprefix,
+                true, (short) 3128, false, (short) 0,
                 null, null, null,
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 new ConnectPoint(origin.deviceId(), origin.port()),
+                true, cacheprefix,
+                true, MacAddress.valueOf(originalreq.getDmac()),
+                true, TpPort.tpPort(UtilCdn.HTTP_PORT),
                 false, null,
-                false,null,
                 false, null,
                 false, null);
 
