@@ -209,7 +209,7 @@ public class CdnService implements
                 Path path = iterator.next(); // Get one path
                 for (Link link : path.links()) {
                     destinationport = link.src().port();
-                    log.info("Treating link {} for device {} inport {} outport {}",
+                    log.debug("Treating link {} for device {} inport {} outport {}",
                             link, link.src().deviceId(), sourceport, destinationport);
                     TrafficSelector selector = trafficSelectorBuilder
                             .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
@@ -230,13 +230,13 @@ public class CdnService implements
                             .fromApp(appId)
                             .withFlag(ForwardingObjective.Flag.SPECIFIC);
                     flowObjectiveService.forward(link.src().deviceId(), fobuilder.add());
-                    log.info("Preparing path: {} {}", selector, treatment);
+                    log.debug("Preparing path: {} {} {}", link.src().deviceId(), selector, treatment);
                     sourceport = link.dst().port();
                 }
             }
             // Now we need to treat last jump
             if (source.deviceId().equals(destination.deviceId())) {
-                log.info("Same device");
+                log.debug("Same device");
                 sourceport = source.port();
             }
             destinationport = destination.port();
@@ -287,7 +287,7 @@ public class CdnService implements
                     .fromApp(appId)
                     .withFlag(ForwardingObjective.Flag.SPECIFIC);
             flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
-            log.info("Preparing final jump: {} {}", selector, treatment);
+            log.debug("Preparing final jump: {} {}", selector, treatment);
         }
 
         return true;
