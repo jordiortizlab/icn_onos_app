@@ -372,11 +372,11 @@ public class CdnService implements
             flow.setSmac(ethPkt.getSourceMAC().toString());
             flow.setDmac(ethPkt.getDestinationMAC().toString());
             // TODO: Check if this restriction should be used
-//            if (findProxy(flow.getSmac()) != null || findCache(flow.getDmac()) != null) {
-//                log.info("Ignoring device {}: Not a client", flow.getSmac());
-//                log.debug("ETH: {} IP: {} TCP: {}",ethPkt, ipv4Pkt, tcpPkt);
-//                return;
-//            }
+            if (findProxy(flow.getSmac()) != null || findCache(flow.getDmac()) != null) {
+                log.info("Ignoring device {}: Not a client", flow.getSmac());
+                log.debug("ETH: {} IP: {} TCP: {}",ethPkt, ipv4Pkt, tcpPkt);
+                return;
+            }
 
             // Nothing to do if we don't have any CDN or proxy
             if (cdns.isEmpty() || proxies.isEmpty()) {
