@@ -345,7 +345,7 @@ public class CdnService implements
             }
 
             if((tcpPkt.getFlags() & 0x2) == 0x0) {
-                log.debug("Packet is not TCP SYN: {}", ethPkt);
+                log.debug("[{}] Packet is not TCP SYN: {}", context.inPacket().receivedFrom(), ethPkt);
                 return;
             }
 
@@ -469,7 +469,7 @@ public class CdnService implements
 	 * @param req
 	 */
 	public void processResourceRequest(ProxyRequest req) {
-		log.debug("Process resource request from proxy {} for host {} and flow {}",
+		log.info("Process resource request from proxy {} for host {} and flow {}",
 				new Object[] {req.proxy, req.hostname, req.flow.toString()} );
 		
 		// Get proxy's attachment points
@@ -620,6 +620,7 @@ public class CdnService implements
         Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(mbox.getMacaddr()));
         if (hostsByMac.size() != 1)
         {
+            log.debug("hostsByMac: {}", hostsByMac);
             if (hostsByMac.size() > 1) {
                 log.error("Unexpected number of hosts for the same mac {}. Too many hosts", mbox.getMacaddr());
             } else {
@@ -730,7 +731,7 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
             }
 
             Topology topology = topologyService.currentTopology();
-            log.info("Paths in topology: {}", topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId)));
+            log.debug("Paths in topology: {}", topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId)));
 
             Set<Path> paths = topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId));
             if (sw.toString().equals(mboxDeviceId))
