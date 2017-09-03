@@ -178,7 +178,8 @@ public class CdnService implements
                                         boolean rewriteDestinationIP, IpAddress rwdestinationAddr,
                                         boolean rewriteDestinationMAC, MacAddress rwdestinationl2Addr,
                                         boolean rewriteDestinationPort, TpPort rwdestport) {
-        log.debug("Creating path matchIpSrc {} matchIpDst {} matchPorDst {} source {} destination {} ", matchIpsrc, matchIpDst, matchPortDst, source, destination);
+        log.debug("Creating path matchIpSrc {} matchIpDst {} matchPortSrc {}:{} matchPorDst {}:{} source {} destination {} ",
+                matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, source, destination);
         log.debug("rewriteSource {} {} {}", rewriteSourceIP, rwsourceAddr, rwsourcel2Addr);
         log.debug("rewriteDestination {} {} {}", rewriteDestinationIP, rwdestinationAddr, rwdestinationl2Addr);
         PortNumber sourceport = source.port();
