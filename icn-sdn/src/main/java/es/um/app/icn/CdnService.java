@@ -562,6 +562,7 @@ public class CdnService implements
 								log.info("New resource {} in CDN {} to cache {}",
 										new Object[] {resourceName, cdn.name, cache.name});
 								foundCache = true;
+                                req.flow.setDmac(cache.macaddr);
 								break;
 							}
 						} else {
@@ -587,6 +588,7 @@ public class CdnService implements
 						        log.info("Existing resource {} in CDN {} to cache {}",
 										new Object[] {resourceName, cdn.name, cache.name});
 						        foundCache = true;
+						        req.flow.setDmac(cache.macaddr);
 						        break;
 							}
 						}
