@@ -640,7 +640,9 @@ public class CdnService implements
         //TODO: What about ipv6??
         int sourceprefix = proxy.ipAddresses().iterator().next().getIp4Address().toInt();
         int destprefix = Ip4Address.valueOf(originalreq.daddr).toInt();
-        IpAddress cacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
+        int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
+        IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
+        IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
         log.debug("prefix origin (proxy) {} destination (provider) {}", sourceprefix, destprefix);
         createPath(appId, pathService, flowObjectiveService,
                 sourceprefix,
@@ -652,18 +654,18 @@ public class CdnService implements
                 false, null,
 false,null,
                 false, null,
-                true, cacheprefix,
+                true, ipcacheprefix,
 true, MacAddress.valueOf(mbox.getMacaddr()),
                 true, TpPort.tpPort(3128)); //TODO: Add port to cache definition in json
 
         createPath(appId, pathService, flowObjectiveService,
-                destprefix,
+                cacheprefix,
                 sourceprefix,
                 true, (short) 3128, false, (short) 0,
                 null, null, null,
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 new ConnectPoint(origin.deviceId(), origin.port()),
-                true, cacheprefix,
+                true, ipdestprefix,
                 true, MacAddress.valueOf(originalreq.getDmac()),
                 true, TpPort.tpPort(UtilCdn.HTTP_PORT),
                 false, null,
