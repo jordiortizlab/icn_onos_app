@@ -617,24 +617,8 @@ public class CdnService implements
 	 * @return Ouput port that must be used by the input switch.
 	 */
 	private boolean programPath(CdnFlow originalreq, Host proxy, HostLocation origin, IMiddlebox mbox) {
-        log.debug("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
+        log.info("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
         log.debug("Original req: {}", originalreq);
-        Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(mbox.getMacaddr()));
-        if (hostsByMac.size() != 1)
-        {
-            log.debug("hostsByMac: {}", hostsByMac);
-            if (hostsByMac.size() > 1) {
-                log.error("Unexpected number of hosts for the same mac {}. Too many hosts", mbox.getMacaddr());
-            } else {
-                log.error("Unexpected number of hosts for the same mac {}. NO HOST", mbox.getMacaddr());
-            }
-            return false;
-        }
-        Host mboxhost = null;
-        for (Host host : hostsByMac) {
-            mboxhost = host;
-        }
-
         log.debug("REST Request:  creating paths");
         log.debug("origin: {}, mbox {}", origin.toString(), mbox.toString());
         //TODO: What about ipv6??
