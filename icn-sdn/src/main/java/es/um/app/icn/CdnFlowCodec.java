@@ -1,7 +1,6 @@
 package es.um.app.icn;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.sun.org.apache.bcel.internal.generic.DADD;
 import org.onosproject.codec.CodecContext;
 import org.onosproject.codec.JsonCodec;
 import org.slf4j.Logger;
