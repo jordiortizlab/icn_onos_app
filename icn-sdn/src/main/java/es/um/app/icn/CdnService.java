@@ -20,13 +20,11 @@
 
 package es.um.app.icn;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.collect.Lists;
 import org.apache.felix.scr.annotations.*;
 import org.onlab.packet.*;
 import org.onosproject.core.ApplicationId;
@@ -40,20 +38,15 @@ import org.onosproject.net.flowobjective.DefaultForwardingObjective;
 import org.onosproject.net.flowobjective.FlowObjectiveService;
 import org.onosproject.net.flowobjective.ForwardingObjective;
 import org.onosproject.net.host.HostService;
-import org.onosproject.net.intent.ConnectivityIntent;
-import org.onosproject.net.intent.HostToHostIntent;
 import org.onosproject.net.intent.Intent;
 import org.onosproject.net.intent.IntentId;
 import org.onosproject.net.intent.IntentService;
-import org.onosproject.net.intent.Key;
-import org.onosproject.net.intent.PointToPointIntent;
 import org.onosproject.net.packet.*;
 import org.onosproject.net.topology.PathService;
 import org.onosproject.net.topology.Topology;
 import org.onosproject.net.topology.TopologyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.security.x509.IPAddressName;
 
 
 @Component(immediate = true)
@@ -539,7 +532,7 @@ public class CdnService implements
 							// Resource requested for the first time, find a
 							// new cache for the content
 							resource = new Resource();
-							resource.id = UtilCdn.resourceId(cdn.name, resourceName);
+							resource.id = UtilCdn.resourceId(cdn.getName(), resourceName);
 							resource.name = resourceName;
 							resource.requests = 1;
                             for (HostLocation proxylocation : proxylocations) {
@@ -550,7 +543,7 @@ public class CdnService implements
 						        		resourceName, deviceId, portNumber);
 								if (cache == null) {
 									log.warn("No cache in CDN {} for new resource {}",
-											cdn.name, resourceName);
+											cdn.getName(), resourceName);
 									continue;
 								} else if (cache.macaddr == null) {
 									log.warn("No MAC address for cache {}",
@@ -560,7 +553,7 @@ public class CdnService implements
 								resource.addCache(cache);
 								cdn.createResource(resource);
 								log.info("New resource {} in CDN {} to cache {}",
-										new Object[] {resourceName, cdn.name, cache.name});
+										new Object[] {resourceName, cdn.getName(), cache.name});
 								foundCache = true;
                                 req.flow.setDmac(cache.macaddr);
 								break;
@@ -578,7 +571,7 @@ public class CdnService implements
 						        		resourceName, deviceId, portNumber);
 						        if (cache == null) {
 						        	log.warn("No cache in CDN {} for existing resource {}",
-											cdn.name, resourceName);
+											cdn.getName(), resourceName);
 						        	continue;
 						        } else if (cache.macaddr == null) {
 						        	log.warn("No MAC address for cache {}",
@@ -586,7 +579,7 @@ public class CdnService implements
 						        	continue;
 						        }
 						        log.info("Existing resource {} in CDN {} to cache {}",
-										new Object[] {resourceName, cdn.name, cache.name});
+										new Object[] {resourceName, cdn.getName(), cache.name});
 						        foundCache = true;
 						        req.flow.setDmac(cache.macaddr);
 						        break;
@@ -741,7 +734,7 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
 	
 	protected Cache findCache(String macaddr) {
 		for (Cdn cdn: cdns.values()) {
-			for (Cache cache: cdn.caches.values()) {
+			for (Cache cache: cdn.retrieveCaches()) {
 				if (macaddr.equalsIgnoreCase(cache.macaddr))
 					return cache;
 			}
@@ -761,13 +754,13 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
 		
 	@Override
 	public Cdn createCdn(Cdn cdn) {
-		cdns.put(cdn.name, cdn);
+		cdns.put(cdn.getName(), cdn);
 		return cdn;
 	}
 	
 	@Override
 	public Cdn updateCdn(Cdn cdn) {
-		cdns.put(cdn.name, cdn);
+		cdns.put(cdn.getName(), cdn);
 		return cdn;
 	}
 	
