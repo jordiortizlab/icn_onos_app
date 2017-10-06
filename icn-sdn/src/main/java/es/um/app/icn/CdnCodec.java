@@ -22,15 +22,27 @@ public class CdnCodec  extends JsonCodec<Cdn> {
     private static final String PROVIDERS_FIELD = "providers";
     private static final String CACHES_FIELD = "caches";
     private static final String RESOURCES_FIELD = "resources";
+    private static final String TYPE_FIELD = "type";
 
 
     @Override
     public ObjectNode encode(Cdn cdn, CodecContext context) {
         if (cdn == null)
             throw new NullPointerException("The Cdn to jsonize is null");
+        String type = "";
+        switch ( cdn.getType()) {
+            case CdnClosestCache.DESCRIPTION:
+                type = CdnClosestCache.DESCRIPTION;
+                break;
+            default:
+                log.error("Unknown CDN Type: {}", cdn.getType());
+                return null;
+        }
+
         ObjectNode result = context.mapper().createObjectNode()
                 .put(NAME_FIELD, cdn.getName())
-                .put(DESCRIPTION_FIELD, cdn.getDescription());
+                .put(DESCRIPTION_FIELD, cdn.getDescription())
+                .put(TYPE_FIELD, type);
         ArrayNode providersarray = result.putArray(PROVIDERS_FIELD);
         Collection<Provider> providers = cdn.retrieveProviders();
         ProviderCodec pc = new ProviderCodec();
@@ -57,7 +69,21 @@ public class CdnCodec  extends JsonCodec<Cdn> {
 
     @Override
     public Cdn decode(ObjectNode json, CodecContext context) {
-        Cdn cdn = new Cdn();
+        Cdn cdn = null;
+        if (json.get(TYPE_FIELD) != null) {
+            switch (json.get(TYPE_FIELD).asText()) {
+                case CdnClosestCache.DESCRIPTION:
+                    cdn = new CdnClosestCache();
+                    break;
+                default:
+                    log.error("Unknown CDN Type: {}", json.get(TYPE_FIELD).asText());
+                    return null;
+            }
+        } else {
+            log.warn("No CDN Type set, defaulting to {}", CdnClosestCache.DESCRIPTION);
+            cdn = new CdnClosestCache();
+        }
+
         cdn.setName(json.get(NAME_FIELD).asText());
         cdn.setDescription(json.get(DESCRIPTION_FIELD).asText());
 

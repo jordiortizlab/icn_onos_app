@@ -33,4 +33,5 @@ public interface Cdn {
     void setName(String name);
     String getDescription();
     void setDescription(String description);
+    String getType();
 }

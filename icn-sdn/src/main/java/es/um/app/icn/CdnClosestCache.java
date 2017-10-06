@@ -34,6 +34,8 @@ public class CdnClosestCache implements Cdn {
     protected HashMap<String, Cache> caches;
     protected HashMap<String, Resource> resources;
 
+    static public final String DESCRIPTION = "CLOSEST";
+
     public CdnClosestCache() {
         providers = new HashMap<String, Provider>();
         caches = new HashMap<String, Cache>();
@@ -69,6 +71,11 @@ public class CdnClosestCache implements Cdn {
         if (resource == null)
             return null;
         return (Cache) service.findClosestMiddlebox(resource.getCaches(), sw, inPort);
+    }
+
+    @Override
+    public String getType() {
+        return DESCRIPTION;
     }
 
     public Collection<Provider> retrieveProviders() {
