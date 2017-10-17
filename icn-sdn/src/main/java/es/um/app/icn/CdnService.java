@@ -457,15 +457,15 @@ public class CdnService implements
     }
 
     /**
-	 * Program required flows when a proxy informs that a resource is being
-	 * requested.
-	 * @param req
-	 */
-	public void processResourceRequest(ProxyRequest req) {
-		log.info("Process resource request from proxy {} for host {} and flow {}",
-				new Object[] {req.proxy, req.hostname, req.flow.toString()} );
-		
-		// Get proxy's attachment points
+     * Program required flows when a proxy informs that a resource is being
+     * requested.
+     * @param req
+     */
+    public void processResourceRequest(ProxyRequest req) {
+        log.info("Process resource request from proxy {} for host {} and flow {}",
+                new Object[] {req.proxy, req.hostname, req.flow.toString()} );
+
+        // Get proxy's attachment points
         Host proxy = null;
         Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(req.getProxy()));
         if (hostsByMac.size() != 1) {
@@ -482,134 +482,134 @@ public class CdnService implements
             return;
         }
 
-		// Get the providers related to this request (if any)
-		Collection<Provider> providers =
-			findProvidersFromAddress(IPv4.toIPv4Address(req.flow.daddr));
-		if (providers.isEmpty()) {
-			log.warn("No provider for proxy request: proxy {} hostname {}",
-					req.proxy, req.hostname);
-			return;
-		}
-		
-		for (Cdn cdn: cdns.values()) {
-			for (Provider provider: cdn.retrieveProviders()) {
-				// This is a candidate provider if the destination
-				// address belong to its network
-				if (providers.contains(provider)) {
-					// By default the resource name is the URI
-					// after stripping the parameters
-					String resourceName = req.uri;
-					int idx = resourceName.indexOf('?'); 
-					if (idx > 0)
-						resourceName = resourceName.substring(0, idx);
-					
-					// This is the appropriate provider if no patterns
-					// are provided or both match
-					boolean match = true;
-					if (provider.uripattern != null) {
-						Pattern pattern = Pattern.compile(provider.uripattern);
-						Matcher matcher = pattern.matcher(req.uri);
-						if (matcher.find())
-							resourceName = matcher.group(1);
-						else
-							match = false;
-					}
-					if (match && provider.hostpattern != null) {
-						Pattern pattern = Pattern.compile(provider.hostpattern);
-						Matcher matcher = pattern.matcher(req.hostname);
-						if (!matcher.find())
-							match = false;
-					}
-					
-					if (match) {
-						Resource resource = cdn.retrieveResource(resourceName);
-						Cache cache = null;
+        // Get the providers related to this request (if any)
+        Collection<Provider> providers =
+                findProvidersFromAddress(IPv4.toIPv4Address(req.flow.daddr));
+        if (providers.isEmpty()) {
+            log.warn("No provider for proxy request: proxy {} hostname {}",
+                    req.proxy, req.hostname);
+            return;
+        }
+
+        for (Cdn cdn: cdns.values()) {
+            for (Provider provider: cdn.retrieveProviders()) {
+                // This is a candidate provider if the destination
+                // address belong to its network
+                if (providers.contains(provider)) {
+                    // By default the resource name is the URI
+                    // after stripping the parameters
+                    String resourceName = req.uri;
+                    int idx = resourceName.indexOf('?');
+                    if (idx > 0)
+                        resourceName = resourceName.substring(0, idx);
+
+                    // This is the appropriate provider if no patterns
+                    // are provided or both match
+                    boolean match = true;
+                    if (provider.uripattern != null) {
+                        Pattern pattern = Pattern.compile(provider.uripattern);
+                        Matcher matcher = pattern.matcher(req.uri);
+                        if (matcher.find())
+                            resourceName = matcher.group(1);
+                        else
+                            match = false;
+                    }
+                    if (match && provider.hostpattern != null) {
+                        Pattern pattern = Pattern.compile(provider.hostpattern);
+                        Matcher matcher = pattern.matcher(req.hostname);
+                        if (!matcher.find())
+                            match = false;
+                    }
+
+                    if (match) {
+                        Resource resource = cdn.retrieveResource(resourceName);
+                        Cache cache = null;
                         HostLocation location = null;
                         DeviceId deviceId = null;
                         PortNumber portNumber = null;
-						boolean foundCache = false;
-						if (resource == null) {
-							// Resource requested for the first time, find a
-							// new cache for the content
-							resource = new Resource();
-							resource.id = UtilCdn.resourceId(cdn.getName(), resourceName);
-							resource.name = resourceName;
-							resource.requests = 1;
+                        boolean foundCache = false;
+                        if (resource == null) {
+                            // Resource requested for the first time, find a
+                            // new cache for the content
+                            resource = new Resource();
+                            resource.id = UtilCdn.resourceId(cdn.getName(), resourceName);
+                            resource.name = resourceName;
+                            resource.requests = 1;
                             for (HostLocation proxylocation : proxylocations) {
                                 location = proxylocation;
                                 deviceId= proxylocation.deviceId();
 
-						        cache = cdn.findCacheForNewResource(this,
-						        		resourceName, deviceId, portNumber);
-								if (cache == null) {
-									log.warn("No cache in CDN {} for new resource {}",
-											cdn.getName(), resourceName);
-									continue;
-								} else if (cache.macaddr == null) {
-									log.warn("No MAC address for cache {}",
-											cache.name);
-									continue;
-								}
-								resource.addCache(cache);
-								cdn.createResource(resource);
-								log.info("New resource {} in CDN {} to cache {}",
-										new Object[] {resourceName, cdn.getName(), cache.name});
-								foundCache = true;
+                                cache = cdn.findCacheForNewResource(this,
+                                        resourceName, deviceId, portNumber);
+                                if (cache == null) {
+                                    log.warn("No cache in CDN {} for new resource {}",
+                                            cdn.getName(), resourceName);
+                                    continue;
+                                } else if (cache.macaddr == null) {
+                                    log.warn("No MAC address for cache {}",
+                                            cache.name);
+                                    continue;
+                                }
+                                resource.addCache(cache);
+                                cdn.createResource(resource);
+                                log.info("New resource {} in CDN {} to cache {}",
+                                        new Object[] {resourceName, cdn.getName(), cache.name});
+                                foundCache = true;
                                 req.flow.setDmac(cache.macaddr);
-								break;
-							}
-						} else {
-							// Existing resource, find the closest cache that
-							// hosts the content
-							resource.requests += 1;
+                                break;
+                            }
+                        } else {
+                            // Existing resource, find the closest cache that
+                            // hosts the content
+                            resource.requests += 1;
                             for (HostLocation proxylocation : proxylocations) {
                                 location = proxylocation;
                                 deviceId = proxylocation.deviceId();
                                 portNumber = proxylocation.port();
-						        
-						        cache = cdn.findCacheForExistingResource(this,
-						        		resourceName, deviceId, portNumber);
-						        if (cache == null) {
-						        	log.warn("No cache in CDN {} for existing resource {}",
-											cdn.getName(), resourceName);
-						        	continue;
-						        } else if (cache.macaddr == null) {
-						        	log.warn("No MAC address for cache {}",
-						        			cache.name);
-						        	continue;
-						        }
-						        log.info("Existing resource {} in CDN {} to cache {}",
-										new Object[] {resourceName, cdn.getName(), cache.name});
-						        foundCache = true;
-						        req.flow.setDmac(cache.macaddr);
-						        break;
-							}
-						}
-						// Establish path to cache
-						if (foundCache) {
-							log.info("Program path to cache {} flow {}",
-									cache.name, req.flow.toString());
+
+                                cache = cdn.findCacheForExistingResource(this,
+                                        resourceName, deviceId, portNumber);
+                                if (cache == null) {
+                                    log.warn("No cache in CDN {} for existing resource {}",
+                                            cdn.getName(), resourceName);
+                                    continue;
+                                } else if (cache.macaddr == null) {
+                                    log.warn("No MAC address for cache {}",
+                                            cache.name);
+                                    continue;
+                                }
+                                log.info("Existing resource {} in CDN {} to cache {}",
+                                        new Object[] {resourceName, cdn.getName(), cache.name});
+                                foundCache = true;
+                                req.flow.setDmac(cache.macaddr);
+                                break;
+                            }
+                        }
+                        // Establish path to cache
+                        if (foundCache) {
+                            log.info("Program path to cache {} flow {}",
+                                    cache.name, req.flow.toString());
                             if (programPath(req.flow, proxy, location, cache)) {
                                 log.info("Created path from proxy to cache");
                             } else {
                                 log.error("Unable to create path from proxy to cache");
                             }
                         }
-						return;
-					}
-				}
-			}
-		}
-	}
-	
-	/**
-	 * Compute route from an input switch to a middlebox's switch, and issue
-	 * corresponding FlowMod messages for the given flow.
-	 * @param origin Input location
-	 * @param mbox Middlebox where the flow is directed.
-	 * @return Ouput port that must be used by the input switch.
-	 */
-	private boolean programPath(CdnFlow originalreq, Host proxy, HostLocation origin, IMiddlebox mbox) {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Compute route from an input switch to a middlebox's switch, and issue
+     * corresponding FlowMod messages for the given flow.
+     * @param origin Input location
+     * @param mbox Middlebox where the flow is directed.
+     * @return Ouput port that must be used by the input switch.
+     */
+    private boolean programPath(CdnFlow originalreq, Host proxy, HostLocation origin, IMiddlebox mbox) {
         log.info("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
         log.debug("Original req: {}", originalreq);
         log.debug("REST Request:  creating paths");
