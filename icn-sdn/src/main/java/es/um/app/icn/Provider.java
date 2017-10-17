@@ -20,6 +20,8 @@
 
 package es.um.app.icn;
 import java.net.UnknownHostException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Provider {
 
@@ -69,22 +71,48 @@ public class Provider {
 		this.network = network;
 	}
 	
-	public String getUripattern() {
-		return uripattern;
-	}
+    public String getUripattern() {
+        return uripattern;
+    }
 
-	public void setUripattern(String uripattern) {
-		this.uripattern = uripattern;
-	}
+    public void setUripattern(String uripattern) {
+        this.uripattern = uripattern;
+    }
 
-	public String getHostpattern() {
-		return hostpattern;
-	}
+    /**
+     *
+     * @param urireq the uri to check against pattern
+     * @return the pattern matched or null if not match
+     */
+    public String matchUriPattern(String urireq) {
+        Pattern pattern = Pattern.compile(this.uripattern);
+        Matcher matcher = pattern.matcher(urireq);
+        if (matcher.find())
+            return matcher.group(0);
+        return null;
+    }
 
-	public void setHostpattern(String hostpattern) {
-		this.hostpattern = hostpattern;
-	}
-	
+    public String getHostpattern() {
+        return hostpattern;
+    }
+
+    public void setHostpattern(String hostpattern) {
+        this.hostpattern = hostpattern;
+    }
+
+    /**
+     *
+     * @param hostreq the host to check against the pattern
+     * @return the pattern matched or null if not match
+     */
+    public String matchHostPattern(String hostreq) {
+        Pattern pattern = Pattern.compile(this.hostpattern);
+        Matcher matcher = pattern.matcher(hostreq);
+        if (matcher.find())
+            return matcher.group(0);
+        return null;
+    }
+
 	protected boolean containsIpAddress(int addr) {
 		try {
 			int subnet = UtilCdn.subnetFromCidr(network);

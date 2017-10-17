@@ -31,6 +31,6 @@ public interface ICdnPrivateService {
 	 * Handle resource requested as notified by a proxy.
 	 * @param req Request forwarded by the proxy.
 	 */
-	public void processResourceRequest(ProxyRequest req);
+	public boolean processResourceRequest(ProxyRequest req);
 	
 }

@@ -45,7 +45,9 @@ public class ProxyRequestNorthbound extends AbstractWebResource {
 		try {
 			ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
 			ProxyRequest newproxyreq = new ProxyRequestCodec().decode(locationobject, this);
-            cdnService.processResourceRequest(newproxyreq);
+            if (!cdnService.processResourceRequest(newproxyreq)) {
+                return Response.status(Response.Status.NOT_ACCEPTABLE).entity("Unable to process request").build();
+			}
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
             log.error("Unable to dejsonize the ProxyRequest");
