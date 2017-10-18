@@ -495,9 +495,9 @@ public class CdnService implements
                 Cache c = null;
                 if (!x.retrieveProviders().contains(provider))
                     return false;
-                if (provider.getUripattern() == null || provider.matchUriPattern(req.uri) == null)
+                if (provider.matchUriPattern(req.uri) == null)
                     return false;
-                if (provider.getHostpattern() == null || provider.matchHostPattern(req.getHostname()) == null)
+                if (provider.matchHostPattern(req.getHostname()) == null)
                     return false;
                 if ((c = x.findCacheForNewResource(this,
                         uri, DeviceId.deviceId(p.getLocation().getDpid()),

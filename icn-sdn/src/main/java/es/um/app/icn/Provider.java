@@ -85,11 +85,14 @@ public class Provider {
      * @return the pattern matched or null if not match
      */
     public String matchUriPattern(String urireq) {
-        Pattern pattern = Pattern.compile(this.uripattern);
-        Matcher matcher = pattern.matcher(urireq);
-        if (matcher.find())
-            return matcher.group(0);
-        return null;
+        if (this.uripattern != null) {
+            Pattern pattern = Pattern.compile(this.uripattern);
+            Matcher matcher = pattern.matcher(urireq);
+            if (matcher.find())
+                return matcher.group(0);
+            return null;
+        }
+        return urireq;
     }
 
     public String getHostpattern() {
@@ -106,11 +109,14 @@ public class Provider {
      * @return the pattern matched or null if not match
      */
     public String matchHostPattern(String hostreq) {
-        Pattern pattern = Pattern.compile(this.hostpattern);
-        Matcher matcher = pattern.matcher(hostreq);
-        if (matcher.find())
-            return matcher.group(0);
-        return null;
+        if (this.hostpattern != null) {
+            Pattern pattern = Pattern.compile(this.hostpattern);
+            Matcher matcher = pattern.matcher(hostreq);
+            if (matcher.find())
+                return matcher.group(0);
+            return null;
+        }
+        return hostreq;
     }
 
 	protected boolean containsIpAddress(int addr) {
