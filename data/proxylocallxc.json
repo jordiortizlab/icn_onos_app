@@ -1,0 +1,1 @@
+{ "name" : "proxyubuntuDockerlibvirt", "description" : "HTTP proxy at libvirtdocker@local", "macaddr" : "52:54:00:51:C2:7C", "ipaddr" : "10.0.0.4", "type" : "http", "location" : { "dpid" : "of:00000000cafe0003", "port" : "4" } }
