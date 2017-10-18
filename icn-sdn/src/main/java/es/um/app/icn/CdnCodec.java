@@ -75,6 +75,9 @@ public class CdnCodec  extends JsonCodec<Cdn> {
                 case CdnClosestCache.DESCRIPTION:
                     cdn = new CdnClosestCache();
                     break;
+                case CdnClosestCacheDASH.DESCRIPTION:
+                    cdn = new CdnClosestCacheDASH();
+                    break;
                 default:
                     log.error("Unknown CDN Type: {}", json.get(TYPE_FIELD).asText());
                     return null;

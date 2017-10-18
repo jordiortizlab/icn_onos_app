@@ -27,6 +27,7 @@ public interface Cdn {
     Collection<Resource> retrieveResources();
     Resource retrieveResource(String id);
     Resource createResource(Resource resource);
+    Resource createResource(Resource resource, Proxy proxy);
     Resource updateResource(Resource resource);
     Resource removeResource(String name);
     String getName();

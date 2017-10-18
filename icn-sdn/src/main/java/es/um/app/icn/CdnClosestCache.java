@@ -135,6 +135,11 @@ public class CdnClosestCache implements Cdn {
         return resource;
     }
 
+    public Resource createResource(Resource resource, Proxy proxy) {
+        resources.put(resource.name, resource);
+        return resource;
+    }
+
     public Resource updateResource(Resource resource) {
         resources.put(resource.name, resource);
         return resource;

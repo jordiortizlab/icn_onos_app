@@ -543,7 +543,7 @@ public class CdnService implements
                 res.requests = 1;
 
                 res.addCache(c);
-                cdn.createResource(res);
+                cdn.createResource(res, p);
                 log.info("New resource {} in CDN {} to cache {}",
                         res, cdn.getName(), c.name);
                 req.flow.setDmac(c.macaddr);
