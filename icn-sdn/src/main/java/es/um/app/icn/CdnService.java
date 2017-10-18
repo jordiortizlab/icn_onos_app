@@ -530,6 +530,7 @@ public class CdnService implements
                         PortNumber.portNumber(p.getLocation().getPort()));
                 log.info("Existing resource {} in CDN {} to cache {}",
                         uri, cdn.getName(), c.name);
+                // TODO: Increment resource requests
                 req.flow.setDmac(c.macaddr);
             } else {
                 // New resource
