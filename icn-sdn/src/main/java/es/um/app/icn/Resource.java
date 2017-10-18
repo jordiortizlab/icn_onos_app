@@ -25,11 +25,12 @@ import java.util.Collection;
 
 public class Resource {
 
-	protected String id;
-	protected String hostname;
-	protected String name;
-	protected long requests;
-	protected Collection<Cache> caches;
+	private String id;
+	private String hostname;
+	private String name;
+    private String fullurl;
+	private long requests;
+	private Collection<Cache> caches;
 	
 	public Resource() {
 		caches = new ArrayList<Cache>();
@@ -66,8 +67,17 @@ public class Resource {
 	public void setCaches(Collection<Cache> caches) {
 		this.caches = caches;
 	}
-	
-	public Cache addCache(Cache cache) {
+
+    public String getFullurl() {
+        return fullurl;
+    }
+
+    public void setFullurl(String fullurl) {
+        this.fullurl = fullurl;
+    }
+
+
+    public Cache addCache(Cache cache) {
 		if (caches.add(cache)) {
 			return cache;
 		}

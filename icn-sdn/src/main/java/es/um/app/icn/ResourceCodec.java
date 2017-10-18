@@ -22,6 +22,7 @@ public class ResourceCodec extends JsonCodec<Resource> {
     private static final String HOSTNAME_FIELD = "hostname";
     private static final String REQUESTS_FIELD = "requests";
     private static final String CACHES_FIELD = "caches";
+    private static final String FULLURL_FIELD = "fullurl";
 
     @Override
     public ObjectNode encode(Resource resource, CodecContext context) {
@@ -30,6 +31,7 @@ public class ResourceCodec extends JsonCodec<Resource> {
         ObjectNode result = context.mapper().createObjectNode()
                 .put(NAME_FIELD, resource.getName())
                 .put(ID_FIELD, resource.getId())
+                .put(FULLURL_FIELD, resource.getFullurl())
 //                .put(HOSTNAME_FIELD, resource.getHostName())
                 .put(REQUESTS_FIELD, resource.getRequests());
         ArrayNode cachesarray = result.putArray(CACHES_FIELD);
@@ -48,6 +50,7 @@ public class ResourceCodec extends JsonCodec<Resource> {
         Resource resource = new Resource();
         resource.setId(json.get(ID_FIELD).asText());
         resource.setName(json.get(NAME_FIELD).asText());
+        resource.setFullurl(json.get(FULLURL_FIELD).asText());
         resource.setRequests(json.get(REQUESTS_FIELD).asLong());
         ArrayNode cachesarray = (ArrayNode) json.get(CACHES_FIELD);
         CacheCodec cc = new CacheCodec();

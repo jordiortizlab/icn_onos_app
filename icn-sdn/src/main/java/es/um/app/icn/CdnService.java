@@ -538,11 +538,11 @@ public class CdnService implements
                         PortNumber.portNumber(p.getLocation().getPort()));
 
                 Resource res = new Resource();
-                res.id = UtilCdn.resourceId(cdn.getName(), uri);
-                res.name = uri;
-                res.requests = 1;
-
+                res.setId(UtilCdn.resourceId(cdn.getName(), uri));
+                res.setName(uri);
+                res.setRequests(1);
                 res.addCache(c);
+                res.setFullurl("http://" + req.getHostname() + "/" + req.getUri()); // TODO: Make this more dynamic
                 cdn.createResource(res, p);
                 log.info("New resource {} in CDN {} to cache {}",
                         res, cdn.getName(), c.name);
