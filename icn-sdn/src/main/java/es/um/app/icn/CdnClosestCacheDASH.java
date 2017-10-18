@@ -20,17 +20,15 @@
 
 package es.um.app.icn;
 
-import com.mashape.unirest.http.Headers;
-import com.mashape.unirest.http.HttpResponse;
-import com.mashape.unirest.http.JsonNode;
-import com.mashape.unirest.http.Unirest;
-import com.mashape.unirest.http.async.Callback;
-import com.mashape.unirest.http.exceptions.UnirestException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
-import java.util.concurrent.Future;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLConnection;
+
 
 public class CdnClosestCacheDASH extends CdnClosestCache {
     private final Logger log = LoggerFactory.getLogger(getClass());
@@ -39,31 +37,22 @@ public class CdnClosestCacheDASH extends CdnClosestCache {
 
     @Override
     public Resource createResource(Resource resource, Proxy proxy) {
-        if (resource.getName().endsWith(".mpd") || resource.getName().endsWith("*.MPD")) {
+        if (resource.getFullurl().endsWith(".mpd") || resource.getFullurl().endsWith("*.MPD")) {
             // It is an MPD. Let's download it and populate caches
-            log.info("Downloading MPD file {}", resource.getName());
-            Future<HttpResponse<JsonNode>> future = Unirest.get(resource.getName())
-                    .header("accept", "application/xml")
-                    .asJsonAsync(new Callback<JsonNode>() {
+            log.info("Downloading MPD file {}", resource.getFullurl());
 
-                        public void failed(UnirestException e) {
-                            log.error("The request has failed. Unable to get {}", resource.getName());
-                        }
+            try {
+                URL url = new URL(resource.getFullurl());
+                URLConnection connection = url.openConnection();
+                log.info(connection.getContent().toString());
+            } catch (MalformedURLException e) {
+                log.error("Malformed URL: {}", resource.getFullurl());
+                e.printStackTrace();
+            } catch (IOException e) {
+                log.error("Impossible to connect {}", resource.getFullurl());
+                e.printStackTrace();
+            }
 
-                        public void completed(HttpResponse<JsonNode> response) {
-                            int code = response.getStatus();
-                            Headers headers = response.getHeaders();
-                            JsonNode body = response.getBody();
-                            InputStream rawBody = response.getRawBody();
-                            log.info("Downloaded: ", response.getBody());
-
-                        }
-
-                        public void cancelled() {
-                            log.error("The request has been cancelled {}", resource.getName());
-                        }
-
-                    });
         }
         return super.createResource(resource);
     }
