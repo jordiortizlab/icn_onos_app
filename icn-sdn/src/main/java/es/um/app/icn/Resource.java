@@ -90,5 +90,16 @@ public class Resource {
 		}
 		return null;
 	}
-	
+
+    @Override
+    public String toString() {
+        return "Resource{" +
+                "id='" + id + '\'' +
+                ", hostname='" + hostname + '\'' +
+                ", name='" + name + '\'' +
+                ", fullurl='" + fullurl + '\'' +
+                ", requests=" + requests +
+                ", caches=" + caches +
+                '}';
+    }
 }
