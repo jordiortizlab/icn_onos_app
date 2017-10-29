@@ -121,8 +121,8 @@ public class Provider {
 
 	protected boolean containsIpAddress(int addr) {
 		try {
-			int subnet = UtilCdn.subnetFromCidr(network);
-			int masklen = UtilCdn.masklenFromCidr(network);
+			int subnet = UtilIcn.subnetFromCidr(network);
+			int masklen = UtilIcn.masklenFromCidr(network);
 			int mask = -1 << (32 - masklen);
 			// Strange Java behavior makes me write this special case
 			if (masklen == 0)

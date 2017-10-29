@@ -21,7 +21,6 @@
 package es.um.app.icn;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onosproject.rest.AbstractWebResource;
 import org.slf4j.Logger;
@@ -41,7 +40,7 @@ public class ProxyRequestNorthbound extends AbstractWebResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response create(InputStream stream) {
-		ICdnPrivateService cdnService = getService(ICdnPrivateService.class);
+		IIcnPrivateService cdnService = getService(IIcnPrivateService.class);
 		try {
 			ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
 			ProxyRequest newproxyreq = new ProxyRequestCodec().decode(locationobject, this);

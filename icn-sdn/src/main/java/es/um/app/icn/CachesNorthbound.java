@@ -41,18 +41,18 @@ public class CachesNorthbound extends AbstractWebResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response retrieve(@QueryParam("name")String cdnName) {
-        ICdnService cdnService = getService(ICdnService.class);
-        Cdn cdn = cdnService.retrieveCdn(cdnName);
-        if (cdn == null) {
+    public Response retrieve(@QueryParam("name")String icnName) {
+        IIcnService icnService = getService(IIcnService.class);
+        Icn icn = icnService.retrieveIcn(icnName);
+        if (icn == null) {
             // 404 Not Found if there's no cdn with this name
-            log.error("Unable to locate cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+            log.error("Unable to locate cdn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + icnName).build();
         }
-        Collection<Cache> caches = cdn.retrieveCaches();
+        Collection<Cache> caches = icn.retrieveCaches();
         if (caches == null) {
-            log.error("No caches in cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("No caches in cdn " + cdnName).build();
+            log.error("No caches in cdn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("No caches in cdn " + icnName).build();
         }
         ObjectNode result = new ObjectMapper().createObjectNode();
         ArrayNode cachesarray = result.putArray("caches");
@@ -67,20 +67,20 @@ public class CachesNorthbound extends AbstractWebResource {
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-	public Response create(@QueryParam("name")String cdnName, InputStream stream) {
-        ICdnService cdnService = getService(ICdnService.class);
-        Cdn cdn = cdnService.retrieveCdn(cdnName);
-        if (cdn == null) {
-            // 404 Not Found if there's no cdn with this name
-            log.error("Unable to locate cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+	public Response create(@QueryParam("name")String icnName, InputStream stream) {
+        IIcnService icnService = getService(IIcnService.class);
+        Icn icn = icnService.retrieveIcn(icnName);
+        if (icn == null) {
+            // 404 Not Found if there's no icn with this name
+            log.error("Unable to locate icn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
         }
         try {
             ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
             Cache newCache = new CacheCodec().decode(locationobject, this);
 
             //Finally create the cache
-            cdnService.createCache(cdn, newCache);
+            icnService.createCache(icn, newCache);
             ObjectNode result = new ObjectMapper().createObjectNode();
             result.set("cache", new CacheCodec().encode(newCache, this));
             return ok(result.toString()).build(); // 200 OK otherwise

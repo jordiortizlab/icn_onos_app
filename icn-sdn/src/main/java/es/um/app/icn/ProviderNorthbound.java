@@ -39,15 +39,15 @@ public class ProviderNorthbound extends AbstractWebResource {
 
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response retrieve(@QueryParam("name")String cdnName, @QueryParam("pname")String provName) {
-		ICdnService service = getService(ICdnService.class);
-		Cdn cdn = service.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			log.error("Unable to locate cdn {}", cdnName);
-			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+	public Response retrieve(@QueryParam("name")String icnName, @QueryParam("pname")String provName) {
+		IIcnService service = getService(IIcnService.class);
+		Icn icn = service.retrieveIcn(icnName);
+		if (icn == null) {
+			// 404 Not Found if there's no icn with this name
+			log.error("Unable to locate icn {}", icnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
 		}
-		Provider provider = service.retrieveProvider(cdn, provName);
+		Provider provider = service.retrieveProvider(icn, provName);
 		if (provider == null) {
 			// 404 Not Found if there's no provider with this name
 			log.error("Unable to locate provider {}", provName);
@@ -61,15 +61,15 @@ public class ProviderNorthbound extends AbstractWebResource {
 	@POST
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
-	public Response update(@QueryParam("name")String cdnName, @QueryParam("pname")String provName, InputStream stream) {
-		ICdnService service = getService(ICdnService.class);
-		Cdn cdn = service.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			log.error("Unable to locate cdn {}", cdnName);
-			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+	public Response update(@QueryParam("name")String icnName, @QueryParam("pname")String provName, InputStream stream) {
+		IIcnService service = getService(IIcnService.class);
+		Icn icn = service.retrieveIcn(icnName);
+		if (icn == null) {
+			// 404 Not Found if there's no icn with this name
+			log.error("Unable to locate icn {}", icnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
 		}
-		Provider provider = service.retrieveProvider(cdn, provName);
+		Provider provider = service.retrieveProvider(icn, provName);
 		if (provider == null) {
 			log.info("Unable to locate provider {}. New provider definition", provName);
 		}
@@ -84,12 +84,12 @@ public class ProviderNorthbound extends AbstractWebResource {
 			}
 			if (provider != null) {
 				//Finally update the provider
-				service.updateProvider(cdn, updatedprovider);
+				service.updateProvider(icn, updatedprovider);
 			}
 			else
 			{
 				//Finally update the provider
-				service.createProvider(cdn, updatedprovider);
+				service.createProvider(icn, updatedprovider);
 			}
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
@@ -106,21 +106,21 @@ public class ProviderNorthbound extends AbstractWebResource {
 	@DELETE
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
-	public Response remove(@QueryParam("name")String cdnName, @QueryParam("pname")String provName) {
-		ICdnService service = getService(ICdnService.class);
-		Cdn cdn = service.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			log.error("Unable to locate cdn {}", cdnName);
-			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+	public Response remove(@QueryParam("name")String icnName, @QueryParam("pname")String provName) {
+		IIcnService service = getService(IIcnService.class);
+		Icn icn = service.retrieveIcn(icnName);
+		if (icn == null) {
+			// 404 Not Found if there's no icn with this name
+			log.error("Unable to locate icn {}", icnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
 		}
-		Provider provider = service.retrieveProvider(cdn, provName);
+		Provider provider = service.retrieveProvider(icn, provName);
 		if (provider == null) {
 			// 404 Not Found if there's no provider with this name
 			log.error("Unable to locate provider {}", provName);
 			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate provider " + provName).build();
 		}
-		Provider removeProvider = service.removeProvider(cdn, provName);
+		Provider removeProvider = service.removeProvider(icn, provName);
 		if (removeProvider == null) {
 			// 404 Not Found if there's no provider with this name
 			log.error("Unable to remove provider {}", provName);

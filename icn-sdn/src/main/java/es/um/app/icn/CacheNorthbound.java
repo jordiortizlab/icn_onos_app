@@ -43,15 +43,15 @@ public class CacheNorthbound extends AbstractWebResource {
 
 	@GET
     @Produces(MediaType.APPLICATION_JSON)
-	public Response retrieve(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName) {
-		ICdnService cdnService = getService(ICdnService.class);
-		Cdn cdn = cdnService.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			log.error("Unable to locate cdn {}", cdnName);
-			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+	public Response retrieve(@QueryParam("name")String icnName, @QueryParam("cname")String cacheName) {
+		IIcnService icnService = getService(IIcnService.class);
+		Icn icn = icnService.retrieveIcn(icnName);
+		if (icn == null) {
+			// 404 Not Found if there's no icn with this name
+			log.error("Unable to locate icn {}", icnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
 		}
-		Cache cache = cdnService.retrieveCache(cdn, cacheName);
+		Cache cache = icnService.retrieveCache(icn, cacheName);
 		if (cache == null) {
 			// 404 Not Found if there's no cache with this name
 			log.error("Unable to locate cache {}", cacheName);
@@ -65,15 +65,15 @@ public class CacheNorthbound extends AbstractWebResource {
     @POST
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-	public Response update(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName, InputStream stream) {
-        ICdnService cdnService = getService(ICdnService.class);
-        Cdn cdn = cdnService.retrieveCdn(cdnName);
-        if (cdn == null) {
-            // 404 Not Found if there's no cdn with this name
-            log.error("Unable to locate cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+	public Response update(@QueryParam("name")String icnName, @QueryParam("cname")String cacheName, InputStream stream) {
+        IIcnService icnService = getService(IIcnService.class);
+        Icn icn = icnService.retrieveIcn(icnName);
+        if (icn == null) {
+            // 404 Not Found if there's no icn with this name
+            log.error("Unable to locate icn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
         }
-        Cache cache = cdnService.retrieveCache(cdn, cacheName);
+        Cache cache = icnService.retrieveCache(icn, cacheName);
         if (cache == null) {
             log.info("Unable to locate cache {}. New cache definition", cacheName);
         }
@@ -87,11 +87,11 @@ public class CacheNorthbound extends AbstractWebResource {
             }
             if (cache != null) {
                 //Finally update the cache
-                cdnService.updateCache(cdn, updatedCache);
+                icnService.updateCache(icn, updatedCache);
             }
             else
             {
-                cdnService.createCache(cdn, updatedCache);
+                icnService.createCache(icn, updatedCache);
             }
         } catch (JsonProcessingException e) {
             e.printStackTrace();
@@ -108,21 +108,21 @@ public class CacheNorthbound extends AbstractWebResource {
     @DELETE
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response remove(@QueryParam("name")String cdnName, @QueryParam("cname")String cacheName) {
-        ICdnService cdnService = getService(ICdnService.class);
-        Cdn cdn = cdnService.retrieveCdn(cdnName);
-        if (cdn == null) {
-            // 404 Not Found if there's no cdn with this name
-            log.error("Unable to locate cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+    public Response remove(@QueryParam("name")String icnName, @QueryParam("cname")String cacheName) {
+        IIcnService icnService = getService(IIcnService.class);
+        Icn icn = icnService.retrieveIcn(icnName);
+        if (icn == null) {
+            // 404 Not Found if there's no icn with this name
+            log.error("Unable to locate icn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
         }
-        Cache cache = cdnService.retrieveCache(cdn, cacheName);
+        Cache cache = icnService.retrieveCache(icn, cacheName);
         if (cache == null) {
             // 404 Not Found if there's no cache with this name
             log.error("Unable to locate cache {}", cacheName);
             return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cache " + cacheName).build();
         }
-		Cache deletedcache = cdnService.removeCache(cdn, cacheName);
+		Cache deletedcache = icnService.removeCache(icn, cacheName);
 		if (deletedcache == null) {
 			// 404 Not Found if there's no cache with this name
             log.error("Unable to remove cache {}", cacheName);

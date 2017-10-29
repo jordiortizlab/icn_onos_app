@@ -23,46 +23,46 @@ package es.um.app.icn;
 import java.util.Collection;
 
 /**
- * CRUD operations for the CDN resources: 'cdn', 'cache', 'provider', 'resource'.
+ * CRUD operations for the ICN resources: 'icn', 'cache', 'provider', 'resource'.
  * Note that every operation is allowed for all resource types.
  * 
  * @author Francisco J. Ros
  */
-public interface ICdnService {
+public interface IIcnService {
 
-	public Collection<Cdn> retrieveCdns();
+	public Collection<Icn> retrieveIcns();
 	
-	public Cdn retrieveCdn(String name);
+	public Icn retrieveIcn(String name);
 	
-	public Cdn createCdn(Cdn cdn);
+	public Icn createIcn(Icn icn);
 	
-	public Cdn updateCdn(Cdn cdn);
+	public Icn updateIcn(Icn icn);
 	
-	public Cdn removeCdn(String name);
+	public Icn removeIcn(String name);
 	
-	public Collection<Provider> retrieveProviders(Cdn cdn);
+	public Collection<Provider> retrieveProviders(Icn icn);
 	
-	public Provider retrieveProvider(Cdn cdn, String name);
+	public Provider retrieveProvider(Icn icn, String name);
 	
-	public Provider createProvider(Cdn cdn, Provider provider);
+	public Provider createProvider(Icn icn, Provider provider);
 	
-	public Provider updateProvider(Cdn cdn, Provider provider);
+	public Provider updateProvider(Icn icn, Provider provider);
 	
-	public Provider removeProvider(Cdn cdn, String name);
+	public Provider removeProvider(Icn icn, String name);
 	
-	public Collection<Cache> retrieveCaches(Cdn cdn);
+	public Collection<Cache> retrieveCaches(Icn icn);
 	
-	public Cache retrieveCache(Cdn cdn, String name);
+	public Cache retrieveCache(Icn icn, String name);
 	
-	public Cache createCache(Cdn cdn, Cache cache);
+	public Cache createCache(Icn icn, Cache cache);
 	
-	public Cache updateCache(Cdn cdn, Cache cache);
+	public Cache updateCache(Icn icn, Cache cache);
 	
-	public Cache removeCache(Cdn cdn, String name);
+	public Cache removeCache(Icn icn, String name);
 	
-	public Collection<Resource> retrieveResources(Cdn cdn);
+	public Collection<Resource> retrieveResources(Icn icn);
 	
-	public Resource retrieveResource(Cdn cdn, String id);
+	public Resource retrieveResource(Icn icn, String id);
 	
 	public Collection<Proxy> retrieveProxies();
 	

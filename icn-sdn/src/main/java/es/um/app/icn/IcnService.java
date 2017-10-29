@@ -22,8 +22,6 @@ package es.um.app.icn;
 
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.felix.scr.annotations.*;
 import org.onlab.packet.*;
@@ -51,10 +49,10 @@ import org.slf4j.LoggerFactory;
 
 @Component(immediate = true)
 @Service
-public class CdnService implements
-	ICdnService, ICdnPrivateService{
+public class IcnService implements
+        IIcnService, IIcnPrivateService {
 
-    protected static final Logger log = LoggerFactory.getLogger(CdnService.class);
+    protected static final Logger log = LoggerFactory.getLogger(IcnService.class);
     protected static final String IPV4_ETHERTYPE = "0x0800";
     protected static final short PUNT_OFIDLE_TIMEOUT = 0;			// infinite
     protected static final short PUNT_OFHARD_TIMEOUT = 0;			// infinite
@@ -97,11 +95,11 @@ public class CdnService implements
     private ApplicationId appId;
 
 	/** We need to register with the provider to receive OF messages */
-	protected HashMap<String, Cdn> cdns;
+	protected HashMap<String, Icn> icns;
 	protected HashMap<String, Proxy> proxies;
 	protected HashMap<IntentId, Intent> installedIntents;
 	
-    private CdnPacketProcessor cdnPacketProcessor = new CdnPacketProcessor();
+    private IcnPacketProcessor icnPacketProcessor = new IcnPacketProcessor();
 
     @Activate
     public void activate() {
@@ -109,11 +107,11 @@ public class CdnService implements
         appId = coreService.registerApplication("es.um.app.icn");
 
         // Initialize our data structures
-        cdns = new HashMap<String, Cdn>();
+        icns = new HashMap<String, Icn>();
         proxies = new HashMap<String, Proxy>();
         installedIntents = new HashMap<>();
         // Install Processor
-        packetService.addProcessor(cdnPacketProcessor, PacketProcessor.director(PROCESSOR_PRIORITY));
+        packetService.addProcessor(icnPacketProcessor, PacketProcessor.director(PROCESSOR_PRIORITY));
 
         requestPackets();
 
@@ -127,7 +125,7 @@ public class CdnService implements
         });
         installedIntents.clear();
         withdrawIntercepts();
-        packetService.removeProcessor(cdnPacketProcessor);
+        packetService.removeProcessor(icnPacketProcessor);
     }
 
     @Modified
@@ -143,7 +141,7 @@ public class CdnService implements
                 DefaultTrafficSelector.builder();
         selectorBuilder.matchEthType(Ethernet.TYPE_IPV4);
         selectorBuilder.matchIPProtocol(IPv4.PROTOCOL_TCP);
-        selectorBuilder.matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT));
+        selectorBuilder.matchTcpDst(TpPort.tpPort(UtilIcn.HTTP_PORT));
         packetService.requestPackets(selectorBuilder.build(), PacketPriority.REACTIVE, appId);
         // TODO: Missing IPv6
     }
@@ -156,7 +154,7 @@ public class CdnService implements
                 DefaultTrafficSelector.builder();
         selectorBuilder.matchEthType(Ethernet.TYPE_IPV4);
         selectorBuilder.matchIPProtocol(IPv4.PROTOCOL_TCP);
-        selectorBuilder.matchTcpDst(TpPort.tpPort(UtilCdn.HTTP_PORT));
+        selectorBuilder.matchTcpDst(TpPort.tpPort(UtilIcn.HTTP_PORT));
         packetService.cancelPackets(selectorBuilder.build(), PacketPriority.REACTIVE, appId);
         // TODO: Missing IPv6
     }
@@ -287,11 +285,11 @@ public class CdnService implements
         return true;
     }
 
-    private class CdnPacketProcessor implements PacketProcessor {
+    private class IcnPacketProcessor implements PacketProcessor {
 
         @Override
         /**
-         * If the payload is of interest to any of our CDNs, then let's decide the
+         * If the payload is of interest to any of our ICNs, then let's decide the
          * destination proxy and program the appropriate paths.
          */
         public void process(PacketContext context) {
@@ -327,7 +325,7 @@ public class CdnService implements
                     return;
                 }
                 tcpPkt = (TCP) ipv4Pkt.getPayload();
-                if ( tcpPkt.getDestinationPort() != UtilCdn.HTTP_PORT) {
+                if ( tcpPkt.getDestinationPort() != UtilIcn.HTTP_PORT) {
                     log.trace("IPv4 Packet is not HTTP, ignoring");
                     return;
                 }
@@ -361,7 +359,7 @@ public class CdnService implements
             HostId dstId = HostId.hostId(ethPkt.getDestinationMAC());
 
             // Check that src is a registered client
-            CdnFlow flow = new CdnFlow();
+            IcnFlow flow = new IcnFlow();
             flow.setSmac(ethPkt.getSourceMAC().toString());
             flow.setDmac(ethPkt.getDestinationMAC().toString());
             // TODO: Check if this restriction should be used
@@ -371,9 +369,9 @@ public class CdnService implements
                 return;
             }
 
-            // Nothing to do if we don't have any CDN or proxy
-            if (cdns.isEmpty() || proxies.isEmpty()) {
-                log.error("Ignoring flow: No available CDNs and/or proxies");
+            // Nothing to do if we don't have any ICN or proxy
+            if (icns.isEmpty() || proxies.isEmpty()) {
+                log.error("Ignoring flow: No available ICNs and/or proxies");
                 return;
             }
 
@@ -416,18 +414,18 @@ public class CdnService implements
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
             log.debug("Packet Processor creating paths");
             // Create path from host to proxy
-            boolean toproxy = CdnService.createPath(appId, pathService, flowObjectiveService,
+            boolean toproxy = IcnService.createPath(appId, pathService, flowObjectiveService,
                     ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
-                    false, (short)0,true, UtilCdn.HTTP_PORT,
+                    false, (short)0,true, UtilIcn.HTTP_PORT,
                     ethPkt, ipv4Pkt, tcpPkt,
                     sourceConnectPoint, destinationConnectPoint, false,
                     null, false, null, false, null,
                     true, outaddress, true, outl2address, false, null);
             log.info("Path created toproxy {}", toproxy);
             // Create return intent
-            boolean fromproxy = CdnService.createPath(appId, pathService, flowObjectiveService,
+            boolean fromproxy = IcnService.createPath(appId, pathService, flowObjectiveService,
                     outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(),
-                    true, UtilCdn.HTTP_PORT,false, (short) 0,
+                    true, UtilIcn.HTTP_PORT,false, (short) 0,
                     ethPkt, ipv4Pkt, tcpPkt,
                     destinationConnectPoint, sourceConnectPoint, true,
                     dstAddr, false, dstl2Addr, false, null,
@@ -467,7 +465,7 @@ public class CdnService implements
 
         Optional<Proxy> optproxy = proxies.values().stream().filter(p -> p.getMacaddr().equalsIgnoreCase(req.getProxy())).findFirst();
         if (!optproxy.isPresent()) {
-            log.error("Unable to find a proxy in cdn for mac{}", req.getProxy());
+            log.error("Unable to find a proxy in icn for mac{}", req.getProxy());
             return false;
         }
 
@@ -491,7 +489,7 @@ public class CdnService implements
             log.info("Checking provider: {}", provider.getName());
             String uri = provider.matchUriPattern(req.uri);
 
-            Optional<Cdn> cdnfirst = cdns.values().stream().filter(x -> {
+            Optional<Icn> icnfirst = icns.values().stream().filter(x -> {
                 Cache c = null;
                 if (!x.retrieveProviders().contains(provider))
                     return false;
@@ -502,7 +500,7 @@ public class CdnService implements
                 if ((c = x.findCacheForNewResource(this,
                         uri, DeviceId.deviceId(p.getLocation().getDpid()),
                         PortNumber.portNumber(p.getLocation().getPort()))) == null) {
-                    log.warn("No cache in CDN {} for new resource {}",
+                    log.warn("No cache in ICN {} for new resource {}",
                             x.getName(), uri);
                     return false;
                 }
@@ -513,40 +511,40 @@ public class CdnService implements
                 }
                 return true;
             }).findFirst();
-            if (!cdnfirst.isPresent()) {
-                log.error("No CDN found ");
+            if (!icnfirst.isPresent()) {
+                log.error("No ICN found ");
                 return false;
             }
 
-            // We have in cdnfirst the first CDN that accomplishes previous checks
-            Cdn cdn = cdnfirst.get();
+            // We have in icnfirst the first ICN that accomplishes previous checks
+            Icn icn = icnfirst.get();
 
             Cache c = null;
             Resource resource = null;
-            if ( (resource = cdn.retrieveResource(uri)) != null) {
+            if ( (resource = icn.retrieveResource(uri)) != null) {
                 // Resource already cached
-                c =  cdn.findCacheForExistingResource(this,
+                c =  icn.findCacheForExistingResource(this,
                         uri, DeviceId.deviceId(p.getLocation().getDpid()),
                         PortNumber.portNumber(p.getLocation().getPort()));
-                log.info("Existing resource {} in CDN {} to cache {}",
-                        uri, cdn.getName(), c.name);
+                log.info("Existing resource {} in ICN {} to cache {}",
+                        uri, icn.getName(), c.name);
                 // TODO: Increment resource requests
                 req.flow.setDmac(c.macaddr);
             } else {
                 // New resource
-                c =  cdn.findCacheForNewResource(this,
+                c =  icn.findCacheForNewResource(this,
                         uri, DeviceId.deviceId(p.getLocation().getDpid()),
                         PortNumber.portNumber(p.getLocation().getPort()));
 
                 Resource res = new Resource();
-                res.setId(UtilCdn.resourceId(cdn.getName(), uri));
+                res.setId(UtilIcn.resourceId(icn.getName(), uri));
                 res.setName(uri);
                 res.setRequests(1);
                 res.addCache(c);
                 res.setFullurl("http://" + req.getHostname() + "/" + req.getUri()); // TODO: Make this more dynamic
-                cdn.createResource(res, p);
-                log.info("New resource {} in CDN {} to cache {}",
-                        res, cdn.getName(), c.name);
+                icn.createResource(res, p);
+                log.info("New resource {} in ICN {} to cache {}",
+                        res, icn.getName(), c.name);
                 req.flow.setDmac(c.macaddr);
             }
             log.info("Program path to cache {} flow {}",
@@ -568,7 +566,7 @@ public class CdnService implements
      * @param mbox Middlebox where the flow is directed.
      * @return Ouput port that must be used by the input switch.
      */
-    private boolean programPath(CdnFlow originalreq, IMiddlebox proxy, Location origin, IMiddlebox mbox) {
+    private boolean programPath(IcnFlow originalreq, IMiddlebox proxy, Location origin, IMiddlebox mbox) {
         log.info("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
         log.debug("Original req: {}", originalreq);
         log.debug("REST Request:  creating paths");
@@ -583,7 +581,7 @@ public class CdnService implements
         createPath(appId, pathService, flowObjectiveService,
                 sourceprefix,
                 destprefix,
-                false, (short) 0, true, UtilCdn.HTTP_PORT,
+                false, (short) 0, true, UtilIcn.HTTP_PORT,
                 null, null, null,
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
@@ -603,7 +601,7 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
                 true, ipdestprefix,
                 true, MacAddress.valueOf(originalreq.getDmac()),
-                true, TpPort.tpPort(UtilCdn.HTTP_PORT),
+                true, TpPort.tpPort(UtilIcn.HTTP_PORT),
                 false, null,
                 false, null,
                 false, null);
@@ -611,8 +609,8 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
         return true;
 	}
 	
-	private CdnFlow reverseFlow(CdnFlow flow) {
-		CdnFlow reverseFlow = new CdnFlow();
+	private IcnFlow reverseFlow(IcnFlow flow) {
+		IcnFlow reverseFlow = new IcnFlow();
     	if (flow.dltype != null)
     		reverseFlow.dltype = flow.dltype;
     	if (flow.proto != null)
@@ -631,7 +629,7 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
 	
 	protected Collection<Provider> findProvidersFromAddress(int ip) {
 		Collection<Provider> providers = new HashSet<Provider>();
-		for (Cdn c : cdns.values()) {
+		for (Icn c : icns.values()) {
 			for (Provider p: c.retrieveProviders()) {
 				if (p.containsIpAddress(ip))
 					providers.add(p);
@@ -692,8 +690,8 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
 	}
 	
 	protected Cache findCache(String macaddr) {
-		for (Cdn cdn: cdns.values()) {
-			for (Cache cache: cdn.retrieveCaches()) {
+		for (Icn icn : icns.values()) {
+			for (Cache cache: icn.retrieveCaches()) {
 				if (macaddr.equalsIgnoreCase(cache.macaddr))
 					return cache;
 			}
@@ -702,90 +700,90 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
 	}
 	
 	@Override
-	public Collection<Cdn> retrieveCdns() {
-		return cdns.values();
+	public Collection<Icn> retrieveIcns() {
+		return icns.values();
 	}
 	
 	@Override
-	public Cdn retrieveCdn(String name) {
-		return cdns.get(name);
+	public Icn retrieveIcn(String name) {
+		return icns.get(name);
 	}
 		
 	@Override
-	public Cdn createCdn(Cdn cdn) {
-		cdns.put(cdn.getName(), cdn);
-		return cdn;
+	public Icn createIcn(Icn icn) {
+		icns.put(icn.getName(), icn);
+		return icn;
 	}
 	
 	@Override
-	public Cdn updateCdn(Cdn cdn) {
-		cdns.put(cdn.getName(), cdn);
-		return cdn;
+	public Icn updateIcn(Icn icn) {
+		icns.put(icn.getName(), icn);
+		return icn;
 	}
 	
 	@Override
-	public Cdn removeCdn(String name) {
-		return cdns.remove(name);
+	public Icn removeIcn(String name) {
+		return icns.remove(name);
 	}
 	
 	@Override
-	public Collection<Provider> retrieveProviders(Cdn cdn) {
-		return cdn.retrieveProviders();
+	public Collection<Provider> retrieveProviders(Icn icn) {
+		return icn.retrieveProviders();
 	}
 	
 	@Override
-	public Provider retrieveProvider(Cdn cdn, String name) {
-		return cdn.retrieveProvider(name);
+	public Provider retrieveProvider(Icn icn, String name) {
+		return icn.retrieveProvider(name);
 	}
 		
 	@Override
-	public Provider createProvider(Cdn cdn, Provider provider) {
-		return cdn.createProvider(provider);
+	public Provider createProvider(Icn icn, Provider provider) {
+		return icn.createProvider(provider);
 	}
 	
 	@Override
-	public Provider updateProvider(Cdn cdn, Provider provider) {
-		return cdn.updateProvider(provider);
+	public Provider updateProvider(Icn icn, Provider provider) {
+		return icn.updateProvider(provider);
 	}
 	
 	@Override
-	public Provider removeProvider(Cdn cdn, String name) {
-		return cdn.removeProvider(name);
+	public Provider removeProvider(Icn icn, String name) {
+		return icn.removeProvider(name);
 	}
 	
 	@Override
-	public Collection<Cache> retrieveCaches(Cdn cdn) {
-		return cdn.retrieveCaches();
+	public Collection<Cache> retrieveCaches(Icn icn) {
+		return icn.retrieveCaches();
 	}
 	
 	@Override
-	public Cache retrieveCache(Cdn cdn, String name) {
-		return cdn.retrieveCache(name);
+	public Cache retrieveCache(Icn icn, String name) {
+		return icn.retrieveCache(name);
 	}
 	
 	@Override
-	public Cache createCache(Cdn cdn, Cache cache) {
-		return cdn.createCache(cache);
+	public Cache createCache(Icn icn, Cache cache) {
+		return icn.createCache(cache);
 	}
 	
 	@Override
-	public Cache updateCache(Cdn cdn, Cache cache) {
-		return cdn.updateCache(cache);
+	public Cache updateCache(Icn icn, Cache cache) {
+		return icn.updateCache(cache);
 	}
 	
 	@Override
-	public Cache removeCache(Cdn cdn, String name) {
-		return cdn.removeCache(name);
+	public Cache removeCache(Icn icn, String name) {
+		return icn.removeCache(name);
 	}
 	
 	@Override
-	public Collection<Resource> retrieveResources(Cdn cdn) {
-		return cdn.retrieveResources();
+	public Collection<Resource> retrieveResources(Icn icn) {
+		return icn.retrieveResources();
 	}
 	
 	@Override
-	public Resource retrieveResource(Cdn cdn, String id) {
-		return cdn.retrieveResource(id);
+	public Resource retrieveResource(Icn icn, String id) {
+		return icn.retrieveResource(id);
 	}
 
 	@Override

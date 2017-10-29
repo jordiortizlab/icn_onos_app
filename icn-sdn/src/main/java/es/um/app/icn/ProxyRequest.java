@@ -34,7 +34,7 @@ public class ProxyRequest {
 	/** Resource URI. */
 	protected String uri;
 	/** Flow to be programmed for this request. */
-	protected CdnFlow flow;
+	protected IcnFlow flow;
 	
 	public ProxyRequest() {
 		
@@ -64,11 +64,11 @@ public class ProxyRequest {
 		this.uri = uri;
 	}
 
-	public CdnFlow getFlow() {
+	public IcnFlow getFlow() {
 		return flow;
 	}
 
-	public void setFlow(CdnFlow flow) {
+	public void setFlow(IcnFlow flow) {
 		this.flow = flow;
 	}
 	

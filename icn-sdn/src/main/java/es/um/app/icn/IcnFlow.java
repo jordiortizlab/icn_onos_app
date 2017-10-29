@@ -21,13 +21,13 @@
 package es.um.app.icn;
 
 /**
- * Fields employed in 'match' clauses to identify flows in the CDN application.
+ * Fields employed in 'match' clauses to identify flows in the ICN application.
  * NOTE: All fields are strings, so clients of this class must ensure the proper
  *       format for each field is used.
  * 
  * @author Francisco J. Ros
  */
-public class CdnFlow {
+public class IcnFlow {
 
 	protected String smac;	// "xx:xx:xx:xx:xx:xx"
 	protected String dmac;	// "xx:xx:xx:xx:xx:xx"
@@ -38,7 +38,7 @@ public class CdnFlow {
 	protected String sport;	// short
 	protected String dport;	// short
 	
-	public CdnFlow() {
+	public IcnFlow() {
 		
 	}
 

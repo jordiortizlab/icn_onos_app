@@ -14,7 +14,7 @@ import java.util.Collection;
 /**
  * Created by Jordi Ortiz on 11/05/16.
  */
-public class CdnCodec  extends JsonCodec<Cdn> {
+public class IcnCodec extends JsonCodec<Icn> {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     private static final String NAME_FIELD = "name";
@@ -26,39 +26,39 @@ public class CdnCodec  extends JsonCodec<Cdn> {
 
 
     @Override
-    public ObjectNode encode(Cdn cdn, CodecContext context) {
-        if (cdn == null)
-            throw new NullPointerException("The Cdn to jsonize is null");
+    public ObjectNode encode(Icn icn, CodecContext context) {
+        if (icn == null)
+            throw new NullPointerException("The ICN to jsonize is null");
         String type = "";
-        switch ( cdn.getType()) {
-            case CdnClosestCache.DESCRIPTION:
-                type = CdnClosestCache.DESCRIPTION;
+        switch ( icn.getType()) {
+            case IcnClosestCache.DESCRIPTION:
+                type = IcnClosestCache.DESCRIPTION;
                 break;
             default:
-                log.error("Unknown CDN Type: {}", cdn.getType());
+                log.error("Unknown ICN Type: {}", icn.getType());
                 return null;
         }
 
         ObjectNode result = context.mapper().createObjectNode()
-                .put(NAME_FIELD, cdn.getName())
-                .put(DESCRIPTION_FIELD, cdn.getDescription())
+                .put(NAME_FIELD, icn.getName())
+                .put(DESCRIPTION_FIELD, icn.getDescription())
                 .put(TYPE_FIELD, type);
         ArrayNode providersarray = result.putArray(PROVIDERS_FIELD);
-        Collection<Provider> providers = cdn.retrieveProviders();
+        Collection<Provider> providers = icn.retrieveProviders();
         ProviderCodec pc = new ProviderCodec();
         for (Provider provider : providers) {
             ObjectNode encodedprovider = pc.encode(provider, context);
             providersarray.add(encodedprovider);
         }
         ArrayNode cachesarray = result.putArray(CACHES_FIELD);
-        Collection<Cache> caches = cdn.retrieveCaches();
+        Collection<Cache> caches = icn.retrieveCaches();
         CacheCodec cc = new CacheCodec();
         for (Cache cache : caches) {
             ObjectNode encodedcache = cc.encode(cache, context);
             cachesarray.add(encodedcache);
         }
         ArrayNode resourcesarray = result.putArray(RESOURCES_FIELD);
-        Collection<Resource> resources = cdn.retrieveResources();
+        Collection<Resource> resources = icn.retrieveResources();
         ResourceCodec rc = new ResourceCodec();
         for (Resource resource : resources) {
             ObjectNode encodedresource = rc.encode(resource, context);
@@ -68,27 +68,27 @@ public class CdnCodec  extends JsonCodec<Cdn> {
     }
 
     @Override
-    public Cdn decode(ObjectNode json, CodecContext context) {
-        Cdn cdn = null;
+    public Icn decode(ObjectNode json, CodecContext context) {
+        Icn icn = null;
         if (json.get(TYPE_FIELD) != null) {
             switch (json.get(TYPE_FIELD).asText()) {
-                case CdnClosestCache.DESCRIPTION:
-                    cdn = new CdnClosestCache();
+                case IcnClosestCache.DESCRIPTION:
+                    icn = new IcnClosestCache();
                     break;
-                case CdnClosestCacheDASH.DESCRIPTION:
-                    cdn = new CdnClosestCacheDASH();
+                case IcnClosestCacheDASH.DESCRIPTION:
+                    icn = new IcnClosestCacheDASH();
                     break;
                 default:
-                    log.error("Unknown CDN Type: {}", json.get(TYPE_FIELD).asText());
+                    log.error("Unknown ICN Type: {}", json.get(TYPE_FIELD).asText());
                     return null;
             }
         } else {
-            log.warn("No CDN Type set, defaulting to {}", CdnClosestCache.DESCRIPTION);
-            cdn = new CdnClosestCache();
+            log.warn("No ICN Type set, defaulting to {}", IcnClosestCache.DESCRIPTION);
+            icn = new IcnClosestCache();
         }
 
-        cdn.setName(json.get(NAME_FIELD).asText());
-        cdn.setDescription(json.get(DESCRIPTION_FIELD).asText());
+        icn.setName(json.get(NAME_FIELD).asText());
+        icn.setDescription(json.get(DESCRIPTION_FIELD).asText());
 
         ArrayNode providersarray = (ArrayNode) json.get(PROVIDERS_FIELD);
         ProviderCodec pc = new ProviderCodec();
@@ -97,7 +97,7 @@ public class CdnCodec  extends JsonCodec<Cdn> {
                 try {
                     ObjectNode providerobject = (ObjectNode) context.mapper().readTree(provider.toString());
                     Provider provider1 = pc.decode(providerobject, context);
-                    cdn.createProvider(provider1);
+                    icn.createProvider(provider1);
                 } catch (IOException e) {
                     e.printStackTrace();
                     log.error("Unable to convert Provider JsonNode to ObjectNode");
@@ -111,7 +111,7 @@ public class CdnCodec  extends JsonCodec<Cdn> {
                 try {
                     ObjectNode cacheobject = (ObjectNode) context.mapper().readTree(cache.toString());
                     Cache cache1 = cc.decode(cacheobject, context);
-                    cdn.createCache(cache1);
+                    icn.createCache(cache1);
                 } catch (IOException e) {
                     e.printStackTrace();
                     log.error("Unable to convert Cahce JsonNode to ObjectNode");
@@ -125,13 +125,13 @@ public class CdnCodec  extends JsonCodec<Cdn> {
                 try {
                     ObjectNode resourceobject = (ObjectNode) context.mapper().readTree(resource.toString());
                     Resource resource1 = rc.decode(resourceobject, context);
-                    cdn.createResource(resource1);
+                    icn.createResource(resource1);
                 } catch (IOException e) {
                     e.printStackTrace();
                     log.error("Unable to convert Resource JsonNode to ObjectNode");
                 }
             }
 
-        return cdn;
+        return icn;
     }
 }

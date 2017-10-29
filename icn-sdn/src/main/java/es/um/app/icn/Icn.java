@@ -8,10 +8,10 @@ import java.util.Collection;
 /**
  * Created by nenjordi on 6/10/17.
  */
-public interface Cdn {
-    Cache findCacheForNewResource(CdnService service,
+public interface Icn {
+    Cache findCacheForNewResource(IcnService service,
                                             String resourceName, DeviceId sw, PortNumber inPort);
-    Cache findCacheForExistingResource(CdnService service,
+    Cache findCacheForExistingResource(IcnService service,
                                                  String resourceName, DeviceId sw, PortNumber inPort);
 
     Collection<Provider> retrieveProviders();

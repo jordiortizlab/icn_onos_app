@@ -41,18 +41,18 @@ public class ResourcesNorthbound extends AbstractWebResource {
 
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response retrieve(@QueryParam("name")String cdnName) {
-		ICdnService cdnService = getService(ICdnService.class);
-		Cdn cdn = cdnService.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			log.error("Unable to locate cdn {}", cdnName);
-			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+	public Response retrieve(@QueryParam("name")String icnName) {
+		IIcnService icnService = getService(IIcnService.class);
+		Icn icn = icnService.retrieveIcn(icnName);
+		if (icn == null) {
+			// 404 Not Found if there's no icn with this name
+			log.error("Unable to locate icn {}", icnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
 		}
-		Collection<Resource> resources = cdn.retrieveResources();
+		Collection<Resource> resources = icn.retrieveResources();
 		if (resources == null) {
-			log.error("No resources in cdn {}", cdnName);
-			return Response.status(Response.Status.NOT_FOUND).entity("No resources in cdn " + cdnName).build();
+			log.error("No resources in icn {}", icnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("No resources in icn " + icnName).build();
 		}
 		ObjectNode result = new ObjectMapper().createObjectNode();
 		ArrayNode resourcesarray = result.putArray("resources");

@@ -35,25 +35,25 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 
-@Path("cdns")
-public class CdnsNorthbound extends AbstractWebResource {
+@Path("icns")
+public class IcnServiceNorthbound extends AbstractWebResource {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
 	public Response retrieve() {
-        ICdnService cdnService = getService(ICdnService.class);
-        Collection<Cdn> cdns = cdnService.retrieveCdns();
-        if (cdns == null)
+        IIcnService cdnService = getService(IIcnService.class);
+        Collection<Icn> icns = cdnService.retrieveIcns();
+        if (icns == null)
         {
             log.error("No Cdn available");
             return Response.status(Response.Status.NOT_FOUND).entity("No Cdn available").build();
         }
         ObjectNode result = new ObjectMapper().createObjectNode();
-        ArrayNode cdnsarray = result.putArray("cdns");
-        CdnCodec cc = new CdnCodec();
-        for (Cdn cdn : cdns) {
-            ObjectNode encodedcdn = cc.encode(cdn, this);
+        ArrayNode cdnsarray = result.putArray("icns");
+        IcnCodec cc = new IcnCodec();
+        for (Icn icn : icns) {
+            ObjectNode encodedcdn = cc.encode(icn, this);
             cdnsarray.add(encodedcdn);
         }
         return ok(result.toString()).build(); // 200 OK otherwise
@@ -63,28 +63,28 @@ public class CdnsNorthbound extends AbstractWebResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
 	public Response create(InputStream stream) {
-        ICdnService cdnService = getService(ICdnService.class);
+        IIcnService cdnService = getService(IIcnService.class);
         try {
             ObjectNode cdnobject = (ObjectNode) mapper().readTree(stream);
-            Cdn cdn = new CdnCodec().decode(cdnobject, this);
-            cdnService.createCdn(cdn);
+            Icn icn = new IcnCodec().decode(cdnobject, this);
+            cdnService.createIcn(icn);
             ObjectNode result = new ObjectMapper().createObjectNode();
-            result.set("cdn", new CdnCodec().encode(cdn, this));
+            result.set("icn", new IcnCodec().encode(icn, this));
             return ok(result.toString()).build(); // 200 OK otherwise
         } catch (JsonProcessingException e) {
             e.printStackTrace();
-            log.error("Unable to parse jsonized cdn in param updatedcdn when calling update method {}", e.toString());
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized cdn in param updatedcdn when calling update method").build();
+            log.error("Unable to parse jsonized icn in param updatedicn when calling update method {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized icn in param updatedicn when calling update method").build();
         } catch (IOException e) {
             e.printStackTrace();
-            log.error("Unable to parse jsonized cdn in param updatedcdn when calling update method {}", e.toString());
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized cdn in param updatedcdn when calling update method").build();
+            log.error("Unable to parse jsonized icn in param updatedicn when calling update method {}", e.toString());
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to parse jsonized icn in param updatedicn when calling update method").build();
         } catch (UnsupportedOperationException | ClassCastException | NullPointerException | IllegalArgumentException e)
         {
             e.printStackTrace();
-            //The cdn already exists, abort
-            log.error("cdn probably already exists, cdn storage problem {}", e.toString());
-            return Response.status(Response.Status.CONFLICT).entity("cdn probably already exists, cdn storage problem").build();
+            //The icn already exists, abort
+            log.error("icn probably already exists, icn storage problem {}", e.toString());
+            return Response.status(Response.Status.CONFLICT).entity("icn probably already exists, icn storage problem").build();
         }
     }
 	

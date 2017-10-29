@@ -39,19 +39,19 @@ public class ResourceNorthbound extends AbstractWebResource {
 
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
-	public Response retrieve(@QueryParam("name")String cdnName, @QueryParam("id")String id) {
-		ICdnService service = getService(ICdnService.class);
-		Cdn cdn = service.retrieveCdn(cdnName);
-		if (cdn == null) {
-			// 404 Not Found if there's no cdn with this name
-			log.error("Unable to locate cdn {}", cdnName);
-			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+	public Response retrieve(@QueryParam("name")String icnName, @QueryParam("id")String id) {
+		IIcnService service = getService(IIcnService.class);
+		Icn icn = service.retrieveIcn(icnName);
+		if (icn == null) {
+			// 404 Not Found if there's no icn with this name
+			log.error("Unable to locate icn {}", icnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
 		}
 
-		Resource resource = service.retrieveResource(cdn, id);
+		Resource resource = service.retrieveResource(icn, id);
 		if (resource == null) {
 			// 404 Not Found if there's no resource with this id
-			log.error("Unable to locate resource with id {} in cdn {}", id, cdnName);
+			log.error("Unable to locate resource with id {} in icn {}", id, icnName);
 			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate resource").build();
 		}
 		ObjectNode result = new ObjectMapper().createObjectNode();

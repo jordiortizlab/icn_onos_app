@@ -26,7 +26,7 @@ import java.util.HashMap;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.PortNumber;
 
-public class CdnClosestCache implements Cdn {
+public class IcnClosestCache implements Icn {
 
     protected String name;
     protected String description;
@@ -36,7 +36,7 @@ public class CdnClosestCache implements Cdn {
 
     static public final String DESCRIPTION = "CLOSEST";
 
-    public CdnClosestCache() {
+    public IcnClosestCache() {
         providers = new HashMap<String, Provider>();
         caches = new HashMap<String, Cache>();
         resources = new HashMap<String, Resource>();
@@ -51,7 +51,7 @@ public class CdnClosestCache implements Cdn {
      * @param inPort Requester's input port.
      * @return An appropriate cache to host the resource.
      */
-    public Cache findCacheForNewResource(CdnService service,
+    public Cache findCacheForNewResource(IcnService service,
                                             String resourceName, DeviceId sw, PortNumber inPort) {
         return (Cache) service.findClosestMiddlebox(caches.values(), sw, inPort);
     }
@@ -65,7 +65,7 @@ public class CdnClosestCache implements Cdn {
      * @param inPort Requester's input port.
      * @return A cache hosting the resource.
      */
-    public Cache findCacheForExistingResource(CdnService service,
+    public Cache findCacheForExistingResource(IcnService service,
             String resourceName, DeviceId sw, PortNumber inPort) {
         Resource resource = resources.get(resourceName);
         if (resource == null)

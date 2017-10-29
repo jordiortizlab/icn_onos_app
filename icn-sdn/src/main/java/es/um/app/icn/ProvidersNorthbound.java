@@ -41,18 +41,18 @@ public class ProvidersNorthbound extends AbstractWebResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-	public Response retrieve(@QueryParam("name")String cdnName) {
-        ICdnService cdnService = getService(ICdnService.class);
-        Cdn cdn = cdnService.retrieveCdn(cdnName);
-        if (cdn == null) {
-            // 404 Not Found if there's no cdn with this name
-            log.error("Unable to locate cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+	public Response retrieve(@QueryParam("name")String icnName) {
+        IIcnService icnService = getService(IIcnService.class);
+        Icn icn = icnService.retrieveIcn(icnName);
+        if (icn == null) {
+            // 404 Not Found if there's no icn with this name
+            log.error("Unable to locate icn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
         }
-        Collection<Provider> providers = cdn.retrieveProviders();
+        Collection<Provider> providers = icn.retrieveProviders();
         if (providers == null) {
-            log.error("No providers in cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("No providers in cdn " + cdnName).build();
+            log.error("No providers in icn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("No providers in icn " + icnName).build();
         }
         ObjectNode result = new ObjectMapper().createObjectNode();
         ArrayNode providersarray = result.putArray("providers");
@@ -67,20 +67,20 @@ public class ProvidersNorthbound extends AbstractWebResource {
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response create(@QueryParam("name")String cdnName, InputStream stream) {
-        ICdnService cdnService = getService(ICdnService.class);
-        Cdn cdn = cdnService.retrieveCdn(cdnName);
-        if (cdn == null) {
-            // 404 Not Found if there's no cdn with this name
-            log.error("Unable to locate cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + cdnName).build();
+    public Response create(@QueryParam("name")String icnName, InputStream stream) {
+        IIcnService icnService = getService(IIcnService.class);
+        Icn icn = icnService.retrieveIcn(icnName);
+        if (icn == null) {
+            // 404 Not Found if there's no icn with this name
+            log.error("Unable to locate icn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
         }
         try {
             ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
             Provider newProvider = new ProviderCodec().decode(locationobject, this);
 
             //Finally create the provider
-            cdnService.createProvider(cdn, newProvider);
+            icnService.createProvider(icn, newProvider);
             ObjectNode result = new ObjectMapper().createObjectNode();
             result.set("provider", new ProviderCodec().encode(newProvider, this));
             return ok(result.toString()).build(); // 200 OK otherwise

@@ -30,8 +30,8 @@ public class AppWebApplication extends AbstractWebApplication {
         return getClasses(
                 CacheNorthbound.class,
                 CachesNorthbound.class,
-                CdnNorthbound.class,
-                CdnsNorthbound.class,
+                IcnNorthbound.class,
+                IcnServiceNorthbound.class,
                 ProviderNorthbound.class,
                 ProvidersNorthbound.class,
                 ProxiesNorthbound.class,

@@ -25,7 +25,7 @@ package es.um.app.icn;
  * 
  * @author Francisco J. Ros
  */
-public interface ICdnPrivateService {
+public interface IIcnPrivateService {
 
 	/**
 	 * Handle resource requested as notified by a proxy.

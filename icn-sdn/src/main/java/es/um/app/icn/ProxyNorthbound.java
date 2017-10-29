@@ -40,7 +40,7 @@ public class ProxyNorthbound extends AbstractWebResource {
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response retrieve(@QueryParam("pname")String name) {
-		ICdnService service = getService(ICdnService.class);
+		IIcnService service = getService(IIcnService.class);
 		Proxy proxy = service.retrieveProxy(name);
 		if (proxy == null) {
 			// 404 Not Found if there's no proxy with this name
@@ -56,8 +56,8 @@ public class ProxyNorthbound extends AbstractWebResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response update(@QueryParam("name")String name, InputStream stream) {
-		ICdnService cdnService = getService(ICdnService.class);
-		Proxy proxy = cdnService.retrieveProxy(name);
+		IIcnService icnService = getService(IIcnService.class);
+		Proxy proxy = icnService.retrieveProxy(name);
 		if (proxy == null) {
 			log.info("Unable to locate proxy {}. New proxy definition", name);
 		}
@@ -70,11 +70,11 @@ public class ProxyNorthbound extends AbstractWebResource {
             }
             if (proxy != null) {
                 // update proxy
-                cdnService.updateProxy(updatedProxy);
+                icnService.updateProxy(updatedProxy);
             }
             else {
                 // We need to create a new proxy
-                cdnService.createProxy(updatedProxy);
+                icnService.createProxy(updatedProxy);
             }
 
         } catch (IOException e) {
@@ -89,14 +89,14 @@ public class ProxyNorthbound extends AbstractWebResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
 	public Response remove(@QueryParam("name")String name) {
-        ICdnService cdnService = getService(ICdnService.class);
-        Proxy proxy = cdnService.retrieveProxy(name);
+        IIcnService icnService = getService(IIcnService.class);
+        Proxy proxy = icnService.retrieveProxy(name);
         if (proxy == null) {
             // 404 Not Found if there's no proxy with this name
             log.error("Unable to locate proxy {}", name);
             return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate proxy " + name).build();
         }
-        Proxy removeProxy = cdnService.removeProxy(name);
+        Proxy removeProxy = icnService.removeProxy(name);
         if (removeProxy == null)
         {
             log.error("Unable to remove proxy {}", name);

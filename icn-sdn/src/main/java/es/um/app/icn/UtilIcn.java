@@ -27,7 +27,7 @@ import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-public class UtilCdn {
+public class UtilIcn {
 
 	public static final byte IPPROTO_TCP = 6;
 	public static short HTTP_PORT = 80;
@@ -49,10 +49,10 @@ public class UtilCdn {
 		return Integer.parseInt(parts[1]);
 	}
 	
-	public static String resourceId(String cdnName, String resourceName) {
+	public static String resourceId(String icnName, String resourceName) {
 		try {
 			MessageDigest md = MessageDigest.getInstance(DIGEST_ALGORITHM);
-			md.update(cdnName.getBytes("UTF-8"));
+			md.update(icnName.getBytes("UTF-8"));
 			md.update(resourceName.getBytes("UTF-8"));
 			return new String(md.digest(), "UTF-8");
 		} catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {

@@ -42,12 +42,12 @@ public class ProxiesNorthbound extends AbstractWebResource {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response retrieve(@QueryParam("name")String cdnName) {
-        ICdnService cdnService = getService(ICdnService.class);
-        Collection<Proxy> proxys = cdnService.retrieveProxies();
+    public Response retrieve(@QueryParam("name")String icnName) {
+        IIcnService icnService = getService(IIcnService.class);
+        Collection<Proxy> proxys = icnService.retrieveProxies();
         if (proxys == null) {
-            log.error("No proxys in cdn {}", cdnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("No proxys in cdn " + cdnName).build();
+            log.error("No proxys in icn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("No proxys in icn " + icnName).build();
         }
         ObjectNode result = new ObjectMapper().createObjectNode();
         ArrayNode proxysarray = result.putArray("proxys");
@@ -63,13 +63,13 @@ public class ProxiesNorthbound extends AbstractWebResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public Response create(InputStream stream) {
-        ICdnService cdnService = getService(ICdnService.class);
+        IIcnService icnService = getService(IIcnService.class);
         try {
             ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
             Proxy newProxy = new ProxyCodec().decode(locationobject, this);
 
             //Finally create the proxy
-            cdnService.createProxy(newProxy);
+            icnService.createProxy(newProxy);
             ObjectNode result = new ObjectMapper().createObjectNode();
             result.set("proxy", new ProxyCodec().encode(newProxy, this));
             return ok(result.toString()).build(); // 200 OK otherwise

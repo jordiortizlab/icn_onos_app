@@ -1,6 +1,5 @@
 package es.um.app.icn;
 
-import com.eclipsesource.json.JsonObject;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onosproject.codec.CodecContext;
@@ -29,9 +28,9 @@ public class ProxyRequestCodec extends JsonCodec<ProxyRequest> {
                 .put(PROXY_FIELD, proxyRequest.getProxy())
                 .put(URI_FIELD, proxyRequest.getUri())
                 .put(HOSTNAME_FIELD, proxyRequest.getProxy());
-        ObjectNode cdnflowobject = new CdnFlowCodec().encode(proxyRequest.getFlow(), context);
+        ObjectNode icnflowobject = new IcnFlowCodec().encode(proxyRequest.getFlow(), context);
         try {
-            JsonNode proxyreqjson = context.mapper().readTree(cdnflowobject.toString());
+            JsonNode proxyreqjson = context.mapper().readTree(icnflowobject.toString());
             result.set(FLOW_FIELD, proxyreqjson);
         } catch (IOException e) {
             e.printStackTrace();
@@ -45,10 +44,10 @@ public class ProxyRequestCodec extends JsonCodec<ProxyRequest> {
         proxyRequest.setProxy(json.get(PROXY_FIELD).asText());
         proxyRequest.setUri(json.get(URI_FIELD).asText());
         proxyRequest.setHostname(json.get(HOSTNAME_FIELD).asText());
-        JsonNode cdnflowjson = json.get(FLOW_FIELD);
+        JsonNode icnflowjson = json.get(FLOW_FIELD);
         try {
-            ObjectNode cdnflowobject = (ObjectNode)context.mapper().readTree(cdnflowjson.toString());
-            proxyRequest.setFlow(new CdnFlowCodec().decode(cdnflowobject, context));
+            ObjectNode icnflowobject = (ObjectNode)context.mapper().readTree(icnflowjson.toString());
+            proxyRequest.setFlow(new IcnFlowCodec().decode(icnflowobject, context));
         } catch (IOException e) {
             log.error("Unable to dejsonize ProxyRequest");
             e.printStackTrace();

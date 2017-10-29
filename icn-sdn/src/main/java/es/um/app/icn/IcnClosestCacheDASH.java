@@ -43,13 +43,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-public class CdnClosestCacheDASH extends CdnClosestCache {
+public class IcnClosestCacheDASH extends IcnClosestCache {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     static public final String DESCRIPTION = "CLOSESTDASH";
     private final ExecutorService pool;
 
-    public CdnClosestCacheDASH() {
+    public IcnClosestCacheDASH() {
         super();
         pool = Executors.newFixedThreadPool(1);
     }
