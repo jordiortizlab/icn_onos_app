@@ -42,19 +42,19 @@ public class IcnServiceNorthbound extends AbstractWebResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
 	public Response retrieve() {
-        IIcnService cdnService = getService(IIcnService.class);
-        Collection<Icn> icns = cdnService.retrieveIcns();
+        IIcnService icnService = getService(IIcnService.class);
+        Collection<Icn> icns = icnService.retrieveIcns();
         if (icns == null)
         {
-            log.error("No Cdn available");
-            return Response.status(Response.Status.NOT_FOUND).entity("No Cdn available").build();
+            log.error("No icn available");
+            return Response.status(Response.Status.NOT_FOUND).entity("No icn available").build();
         }
         ObjectNode result = new ObjectMapper().createObjectNode();
-        ArrayNode cdnsarray = result.putArray("icns");
+        ArrayNode icnsarray = result.putArray("icns");
         IcnCodec cc = new IcnCodec();
         for (Icn icn : icns) {
-            ObjectNode encodedcdn = cc.encode(icn, this);
-            cdnsarray.add(encodedcdn);
+            ObjectNode encodedicn = cc.encode(icn, this);
+            icnsarray.add(encodedicn);
         }
         return ok(result.toString()).build(); // 200 OK otherwise
     }
@@ -63,11 +63,11 @@ public class IcnServiceNorthbound extends AbstractWebResource {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
 	public Response create(InputStream stream) {
-        IIcnService cdnService = getService(IIcnService.class);
+        IIcnService icnService = getService(IIcnService.class);
         try {
-            ObjectNode cdnobject = (ObjectNode) mapper().readTree(stream);
-            Icn icn = new IcnCodec().decode(cdnobject, this);
-            cdnService.createIcn(icn);
+            ObjectNode icnobject = (ObjectNode) mapper().readTree(stream);
+            Icn icn = new IcnCodec().decode(icnobject, this);
+            icnService.createIcn(icn);
             ObjectNode result = new ObjectMapper().createObjectNode();
             result.set("icn", new IcnCodec().encode(icn, this));
             return ok(result.toString()).build(); // 200 OK otherwise

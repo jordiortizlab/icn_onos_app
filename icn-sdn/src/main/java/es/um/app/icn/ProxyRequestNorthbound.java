@@ -40,11 +40,11 @@ public class ProxyRequestNorthbound extends AbstractWebResource {
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response create(InputStream stream) {
-		IIcnPrivateService cdnService = getService(IIcnPrivateService.class);
+		IIcnPrivateService icnPrivateService = getService(IIcnPrivateService.class);
 		try {
 			ObjectNode locationobject = (ObjectNode) mapper().readTree(stream);
 			ProxyRequest newproxyreq = new ProxyRequestCodec().decode(locationobject, this);
-            if (!cdnService.processResourceRequest(newproxyreq)) {
+            if (!icnPrivateService.processResourceRequest(newproxyreq)) {
                 return Response.status(Response.Status.NOT_ACCEPTABLE).entity("Unable to process request").build();
 			}
 		} catch (JsonProcessingException e) {

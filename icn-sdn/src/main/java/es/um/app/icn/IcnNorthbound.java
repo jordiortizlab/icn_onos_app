@@ -33,7 +33,7 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 
-@Path("cdn")
+@Path("icn")
 public class IcnNorthbound extends AbstractWebResource {
     private final Logger log = LoggerFactory.getLogger(getClass());
 

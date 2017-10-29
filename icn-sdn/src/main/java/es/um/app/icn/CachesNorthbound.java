@@ -45,14 +45,14 @@ public class CachesNorthbound extends AbstractWebResource {
         IIcnService icnService = getService(IIcnService.class);
         Icn icn = icnService.retrieveIcn(icnName);
         if (icn == null) {
-            // 404 Not Found if there's no cdn with this name
-            log.error("Unable to locate cdn {}", icnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate cdn " + icnName).build();
+            // 404 Not Found if there's no icn with this name
+            log.error("Unable to locate icn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
         }
         Collection<Cache> caches = icn.retrieveCaches();
         if (caches == null) {
-            log.error("No caches in cdn {}", icnName);
-            return Response.status(Response.Status.NOT_FOUND).entity("No caches in cdn " + icnName).build();
+            log.error("No caches in icn {}", icnName);
+            return Response.status(Response.Status.NOT_FOUND).entity("No caches in icn " + icnName).build();
         }
         ObjectNode result = new ObjectMapper().createObjectNode();
         ArrayNode cachesarray = result.putArray("caches");
