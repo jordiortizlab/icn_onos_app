@@ -24,6 +24,7 @@ package es.um.app.icn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
@@ -55,13 +56,14 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
     }
 
     @Override
-    public Resource createResource(Resource resource, Proxy proxy) {
-        if (resource.getFullurl().endsWith(".mpd") || resource.getFullurl().endsWith("*.MPD")) {
+    public ResourceHTTP createResource(ResourceHTTP resourceHTTP, Proxy proxy) {
+        ResourceHTTPDASH resourceDASH = null;
+        if (resourceHTTP.getFilename().endsWith(".mpd") || resourceHTTP.getFilename().endsWith("*.MPD")) {
             // It is an MPD. Let's download it and populate caches
-            log.info("Downloading MPD file {}", resource.getFullurl());
+            log.info("Downloading MPD file {}", resourceHTTP.getFullurl());
             String mpd = "";
             try {
-                URL url = new URL(resource.getFullurl());
+                URL url = new URL(resourceHTTP.getFullurl());
                 URLConnection connection = url.openConnection();
                 connection.connect();
 
@@ -72,24 +74,59 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                     mpd = mpd.concat(inputLine);
                 }
                 in.close();
+                resourceDASH = new ResourceHTTPDASH(resourceHTTP);
                 // Here we can make actions for the mpd in xml form
-                pool.execute(new MPDParser(mpd));
+                pool.execute(new MPDParser(mpd, resourceDASH));
             } catch (MalformedURLException e) {
-                log.error("Malformed URL: {}", resource.getFullurl());
+                log.error("Malformed URL: {}", resourceHTTP.getFullurl());
                 e.printStackTrace();
             } catch (IOException e) {
-                log.error("Impossible to connect {}", resource.getFullurl());
+                log.error("Impossible to connect {}", resourceHTTP.getFullurl());
                 e.printStackTrace();
             }
         }
-        return super.createResource(resource);
+        return super.createResource(resourceDASH == null ? resourceHTTP : resourceDASH);
     }
 
     class MPDParser implements Runnable {
         private String xml;
+        private ResourceHTTPDASH resource;
 
-        public MPDParser(String xml) {
+        public MPDParser(String xml, ResourceHTTPDASH resource) {
             this.xml = xml;
+        }
+
+        private RepresentationDASH parseRepresentation(Node item) {
+            int id = 0;
+            int width = 0;
+            int height = 0;
+            int frameRate = 0;
+            long bandwidth = 0L;
+            String codec = "";
+            String mimetype = "";
+
+            NamedNodeMap attributes = item.getAttributes();
+            id = Integer.parseInt(attributes.getNamedItem("id").getNodeValue());
+            width = Integer.parseInt(attributes.getNamedItem("width").getNodeValue());
+            height = Integer.parseInt(attributes.getNamedItem("height").getNodeValue());
+            frameRate = Integer.parseInt(attributes.getNamedItem("frameRate").getNodeValue());
+            bandwidth = Long.parseLong(attributes.getNamedItem("bandwidth").getNodeValue());
+            codec = attributes.getNamedItem("codec").getNodeValue();
+
+            RepresentationDASH r = new RepresentationDASH(id, width, height, frameRate, bandwidth, codec, mimetype);
+            //TODO: Get child urls and putResource()
+            NodeList childNodes = item.getChildNodes();
+            for (int idx = 0; idx < childNodes.getLength(); idx++) {
+                Node child = childNodes.item(idx);
+                if (child.getNodeName().equalsIgnoreCase("SegmentURL")) {
+                    Node media = child.getAttributes().getNamedItem("media");
+                    String url = media.getNodeValue();
+                    r.putResource(url);
+                }
+            }
+
+
+            return r;
         }
 
         @Override
@@ -104,6 +141,9 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 for (int i = 0; i < representation.getLength(); i++) {
                     Node item = representation.item(i);
                     log.info("Representation: {}", item);
+
+                    RepresentationDASH representationDASH = parseRepresentation(item);
+                    resource.putRepresentation(representationDASH.id, representationDASH);
                 }
             } catch (ParserConfigurationException e) {
                 log.error("MPD:: Impossible to configure XML Parser {}", e);

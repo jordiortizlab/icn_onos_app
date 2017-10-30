@@ -21,7 +21,7 @@
 package es.um.app.icn;
 
 /**
- * Resource request as notified by a proxy.
+ * ResourceHTTP request as notified by a proxy.
  * 
  * @author Francisco J. Ros
  */
@@ -31,7 +31,7 @@ public class ProxyRequest {
 	protected String proxy;
 	/** Host where the resource is being requested. */
 	protected String hostname;
-	/** Resource URI. */
+	/** ResourceHTTP URI. */
 	protected String uri;
 	/** Flow to be programmed for this request. */
 	protected IcnFlow flow;

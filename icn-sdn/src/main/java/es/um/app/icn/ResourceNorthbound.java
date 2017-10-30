@@ -48,14 +48,14 @@ public class ResourceNorthbound extends AbstractWebResource {
 			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
 		}
 
-		Resource resource = service.retrieveResource(icn, id);
-		if (resource == null) {
-			// 404 Not Found if there's no resource with this id
-			log.error("Unable to locate resource with id {} in icn {}", id, icnName);
-			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate resource").build();
+		ResourceHTTP resourceHTTP = service.retrieveResource(icn, id);
+		if (resourceHTTP == null) {
+			// 404 Not Found if there's no resourceHTTP with this id
+			log.error("Unable to locate resourceHTTP with id {} in icn {}", id, icnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate resourceHTTP").build();
 		}
 		ObjectNode result = new ObjectMapper().createObjectNode();
-		result.set("resource", new ResourceCodec().encode(resource, this));
+		result.set("resourceHTTP", new ResourceCodec().encode(resourceHTTP, this));
 		return ok(result.toString()).build(); // 200 OK otherwise
 
 	}

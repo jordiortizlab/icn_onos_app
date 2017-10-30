@@ -60,9 +60,9 @@ public interface IIcnService {
 	
 	public Cache removeCache(Icn icn, String name);
 	
-	public Collection<Resource> retrieveResources(Icn icn);
+	public Collection<ResourceHTTP> retrieveResources(Icn icn);
 	
-	public Resource retrieveResource(Icn icn, String id);
+	public ResourceHTTP retrieveResource(Icn icn, String id);
 	
 	public Collection<Proxy> retrieveProxies();
 	

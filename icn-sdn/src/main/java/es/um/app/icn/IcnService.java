@@ -500,7 +500,7 @@ public class IcnService implements
                 if ((c = x.findCacheForNewResource(this,
                         uri, DeviceId.deviceId(p.getLocation().getDpid()),
                         PortNumber.portNumber(p.getLocation().getPort()))) == null) {
-                    log.warn("No cache in ICN {} for new resource {}",
+                    log.warn("No cache in ICN {} for new resourceHTTP {}",
                             x.getName(), uri);
                     return false;
                 }
@@ -520,30 +520,30 @@ public class IcnService implements
             Icn icn = icnfirst.get();
 
             Cache c = null;
-            Resource resource = null;
-            if ( (resource = icn.retrieveResource(uri)) != null) {
-                // Resource already cached
+            ResourceHTTP resourceHTTP = null;
+            if ( (resourceHTTP = icn.retrieveResource(uri)) != null) {
+                // ResourceHTTP already cached
                 c =  icn.findCacheForExistingResource(this,
                         uri, DeviceId.deviceId(p.getLocation().getDpid()),
                         PortNumber.portNumber(p.getLocation().getPort()));
-                log.info("Existing resource {} in ICN {} to cache {}",
+                log.info("Existing resourceHTTP {} in ICN {} to cache {}",
                         uri, icn.getName(), c.name);
-                // TODO: Increment resource requests
+                // TODO: Increment resourceHTTP requests
                 req.flow.setDmac(c.macaddr);
             } else {
-                // New resource
+                // New resourceHTTP
                 c =  icn.findCacheForNewResource(this,
                         uri, DeviceId.deviceId(p.getLocation().getDpid()),
                         PortNumber.portNumber(p.getLocation().getPort()));
 
-                Resource res = new Resource();
+                ResourceHTTP res = new ResourceHTTP();
                 res.setId(UtilIcn.resourceId(icn.getName(), uri));
                 res.setName(uri);
                 res.setRequests(1);
                 res.addCache(c);
                 res.setFullurl("http://" + req.getHostname() + "/" + req.getUri()); // TODO: Make this more dynamic
                 icn.createResource(res, p);
-                log.info("New resource {} in ICN {} to cache {}",
+                log.info("New resourceHTTP {} in ICN {} to cache {}",
                         res, icn.getName(), c.name);
                 req.flow.setDmac(c.macaddr);
             }
@@ -777,12 +777,12 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
 	}
 	
 	@Override
-	public Collection<Resource> retrieveResources(Icn icn) {
+	public Collection<ResourceHTTP> retrieveResources(Icn icn) {
 		return icn.retrieveResources();
 	}
 	
 	@Override
-	public Resource retrieveResource(Icn icn, String id) {
+	public ResourceHTTP retrieveResource(Icn icn, String id) {
 		return icn.retrieveResource(id);
 	}
 

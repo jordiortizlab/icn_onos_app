@@ -32,14 +32,14 @@ public class IcnClosestCache implements Icn {
     protected String description;
     protected HashMap<String, Provider> providers;
     protected HashMap<String, Cache> caches;
-    protected HashMap<String, Resource> resources;
+    protected HashMap<String, ResourceHTTP> resources;
 
     static public final String DESCRIPTION = "CLOSEST";
 
     public IcnClosestCache() {
         providers = new HashMap<String, Provider>();
         caches = new HashMap<String, Cache>();
-        resources = new HashMap<String, Resource>();
+        resources = new HashMap<String, ResourceHTTP>();
     }
 
     /**
@@ -67,10 +67,10 @@ public class IcnClosestCache implements Icn {
      */
     public Cache findCacheForExistingResource(IcnService service,
             String resourceName, DeviceId sw, PortNumber inPort) {
-        Resource resource = resources.get(resourceName);
-        if (resource == null)
+        ResourceHTTP resourceHTTP = resources.get(resourceName);
+        if (resourceHTTP == null)
             return null;
-        return (Cache) service.findClosestMiddlebox(resource.getCaches(), sw, inPort);
+        return (Cache) service.findClosestMiddlebox(resourceHTTP.getCaches(), sw, inPort);
     }
 
     @Override
@@ -122,30 +122,30 @@ public class IcnClosestCache implements Icn {
         return caches.remove(name);
     }
 
-    public Collection<Resource> retrieveResources() {
+    public Collection<ResourceHTTP> retrieveResources() {
         return resources.values();
     }
 
-    public Resource retrieveResource(String id) {
+    public ResourceHTTP retrieveResource(String id) {
         return resources.get(id);
     }
 
-    public Resource createResource(Resource resource) {
-        resources.put(resource.getName(), resource);
-        return resource;
+    public ResourceHTTP createResource(ResourceHTTP resourceHTTP) {
+        resources.put(resourceHTTP.getName(), resourceHTTP);
+        return resourceHTTP;
     }
 
-    public Resource createResource(Resource resource, Proxy proxy) {
-        resources.put(resource.getName(), resource);
-        return resource;
+    public ResourceHTTP createResource(ResourceHTTP resourceHTTP, Proxy proxy) {
+        resources.put(resourceHTTP.getName(), resourceHTTP);
+        return resourceHTTP;
     }
 
-    public Resource updateResource(Resource resource) {
-        resources.put(resource.getName(), resource);
-        return resource;
+    public ResourceHTTP updateResource(ResourceHTTP resourceHTTP) {
+        resources.put(resourceHTTP.getName(), resourceHTTP);
+        return resourceHTTP;
     }
 
-    public Resource removeResource(String name) {
+    public ResourceHTTP removeResource(String name) {
         return resources.remove(name);
     }
 

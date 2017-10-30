@@ -24,12 +24,12 @@ public interface Icn {
     Cache createCache(Cache cache);
     Cache updateCache(Cache cache);
     Cache removeCache(String name);
-    Collection<Resource> retrieveResources();
-    Resource retrieveResource(String id);
-    Resource createResource(Resource resource);
-    Resource createResource(Resource resource, Proxy proxy);
-    Resource updateResource(Resource resource);
-    Resource removeResource(String name);
+    Collection<ResourceHTTP> retrieveResources();
+    ResourceHTTP retrieveResource(String id);
+    ResourceHTTP createResource(ResourceHTTP resourceHTTP);
+    ResourceHTTP createResource(ResourceHTTP resourceHTTP, Proxy proxy);
+    ResourceHTTP updateResource(ResourceHTTP resourceHTTP);
+    ResourceHTTP removeResource(String name);
     String getName();
     void setName(String name);
     String getDescription();

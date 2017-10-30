@@ -14,7 +14,7 @@ import java.util.Collection;
 /**
  * Created by Jordi Ortiz on 19/04/16.
  */
-public class ResourceCodec extends JsonCodec<Resource> {
+public class ResourceCodec extends JsonCodec<ResourceHTTP> {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     private static final String NAME_FIELD = "name";
@@ -25,17 +25,17 @@ public class ResourceCodec extends JsonCodec<Resource> {
     private static final String FULLURL_FIELD = "fullurl";
 
     @Override
-    public ObjectNode encode(Resource resource, CodecContext context) {
-        if (resource == null)
-            throw new NullPointerException("The resource to jsonize is null");
+    public ObjectNode encode(ResourceHTTP resourceHTTP, CodecContext context) {
+        if (resourceHTTP == null)
+            throw new NullPointerException("The resourceHTTP to jsonize is null");
         ObjectNode result = context.mapper().createObjectNode()
-                .put(NAME_FIELD, resource.getName())
-                .put(ID_FIELD, resource.getId())
-                .put(FULLURL_FIELD, resource.getFullurl())
-//                .put(HOSTNAME_FIELD, resource.getHostName())
-                .put(REQUESTS_FIELD, resource.getRequests());
+                .put(NAME_FIELD, resourceHTTP.getName())
+                .put(ID_FIELD, resourceHTTP.getId())
+                .put(FULLURL_FIELD, resourceHTTP.getFullurl())
+//                .put(HOSTNAME_FIELD, resourceHTTP.getHostName())
+                .put(REQUESTS_FIELD, resourceHTTP.getRequests());
         ArrayNode cachesarray = result.putArray(CACHES_FIELD);
-        Collection<Cache> caches = resource.getCaches();
+        Collection<Cache> caches = resourceHTTP.getCaches();
         CacheCodec cc = new CacheCodec();
         for (Cache cache : caches) {
             ObjectNode encodedcache = cc.encode(cache, context);
@@ -46,25 +46,25 @@ public class ResourceCodec extends JsonCodec<Resource> {
     }
 
     @Override
-    public Resource decode(ObjectNode json, CodecContext context) {
-        Resource resource = new Resource();
-        resource.setId(json.get(ID_FIELD).asText());
-        resource.setName(json.get(NAME_FIELD).asText());
-        resource.setFullurl(json.get(FULLURL_FIELD).asText());
-        resource.setRequests(json.get(REQUESTS_FIELD).asLong());
+    public ResourceHTTP decode(ObjectNode json, CodecContext context) {
+        ResourceHTTP resourceHTTP = new ResourceHTTP();
+        resourceHTTP.setId(json.get(ID_FIELD).asText());
+        resourceHTTP.setName(json.get(NAME_FIELD).asText());
+        resourceHTTP.setFullurl(json.get(FULLURL_FIELD).asText());
+        resourceHTTP.setRequests(json.get(REQUESTS_FIELD).asLong());
         ArrayNode cachesarray = (ArrayNode) json.get(CACHES_FIELD);
         CacheCodec cc = new CacheCodec();
         for (JsonNode cache : cachesarray) {
             try {
                 ObjectNode cacheobject = (ObjectNode) context.mapper().readTree(cache.toString());
                 Cache cache1 = cc.decode(cacheobject, context);
-                resource.addCache(cache1);
+                resourceHTTP.addCache(cache1);
             } catch (IOException e) {
                 e.printStackTrace();
                 log.error("Unable to convert Cahce JsonNode to ObjectNode");
             }
 
         }
-        return resource;
+        return resourceHTTP;
     }
 }

@@ -58,10 +58,10 @@ public class IcnCodec extends JsonCodec<Icn> {
             cachesarray.add(encodedcache);
         }
         ArrayNode resourcesarray = result.putArray(RESOURCES_FIELD);
-        Collection<Resource> resources = icn.retrieveResources();
+        Collection<ResourceHTTP> resourceHTTPS = icn.retrieveResources();
         ResourceCodec rc = new ResourceCodec();
-        for (Resource resource : resources) {
-            ObjectNode encodedresource = rc.encode(resource, context);
+        for (ResourceHTTP resourceHTTP : resourceHTTPS) {
+            ObjectNode encodedresource = rc.encode(resourceHTTP, context);
             resourcesarray.add(encodedresource);
         }
         return result;
@@ -124,11 +124,11 @@ public class IcnCodec extends JsonCodec<Icn> {
             for (JsonNode resource : resourcesarray) {
                 try {
                     ObjectNode resourceobject = (ObjectNode) context.mapper().readTree(resource.toString());
-                    Resource resource1 = rc.decode(resourceobject, context);
-                    icn.createResource(resource1);
+                    ResourceHTTP resourceHTTP1 = rc.decode(resourceobject, context);
+                    icn.createResource(resourceHTTP1);
                 } catch (IOException e) {
                     e.printStackTrace();
-                    log.error("Unable to convert Resource JsonNode to ObjectNode");
+                    log.error("Unable to convert ResourceHTTP JsonNode to ObjectNode");
                 }
             }
 

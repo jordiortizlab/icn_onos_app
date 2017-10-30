@@ -49,16 +49,16 @@ public class ResourcesNorthbound extends AbstractWebResource {
 			log.error("Unable to locate icn {}", icnName);
 			return Response.status(Response.Status.NOT_FOUND).entity("Unable to locate icn " + icnName).build();
 		}
-		Collection<Resource> resources = icn.retrieveResources();
-		if (resources == null) {
-			log.error("No resources in icn {}", icnName);
-			return Response.status(Response.Status.NOT_FOUND).entity("No resources in icn " + icnName).build();
+		Collection<ResourceHTTP> resourceHTTPS = icn.retrieveResources();
+		if (resourceHTTPS == null) {
+			log.error("No resourceHTTPS in icn {}", icnName);
+			return Response.status(Response.Status.NOT_FOUND).entity("No resourceHTTPS in icn " + icnName).build();
 		}
 		ObjectNode result = new ObjectMapper().createObjectNode();
-		ArrayNode resourcesarray = result.putArray("resources");
+		ArrayNode resourcesarray = result.putArray("resourceHTTPS");
 		ResourceCodec cc = new ResourceCodec();
-		for (Resource resource : resources) {
-			ObjectNode encodedresource = cc.encode(resource, this);
+		for (ResourceHTTP resourceHTTP : resourceHTTPS) {
+			ObjectNode encodedresource = cc.encode(resourceHTTP, this);
 			resourcesarray.add(encodedresource);
 		}
 		return ok(result.toString()).build(); // 200 OK otherwise
