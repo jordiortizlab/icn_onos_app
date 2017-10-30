@@ -30,7 +30,7 @@ import java.util.Collection;
 
 public class ResourceHTTP implements Resource {
     private final Logger log = LoggerFactory.getLogger(getClass());
-    private static String DESCRIPTION = "HTTP";
+    public static String DESCRIPTION = "HTTP";
 
     private String id;
     private String hostname;
@@ -138,5 +138,11 @@ public class ResourceHTTP implements Resource {
                 ", requests=" + requests +
                 ", caches=" + caches +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        ResourceHTTP r = (ResourceHTTP)obj;
+        return r.getFullurl().equals(getFullurl());
     }
 }

@@ -6,7 +6,7 @@ import java.util.HashMap;
  * Created by Jordi Ortiz on 30/10/17.
  */
 public class ResourceHTTPDASH extends ResourceHTTP {
-    private static String DESCRIPTION = "DASH";
+    public static String DESCRIPTION = "DASH";
     HashMap<Integer, RepresentationDASH> representations;
 
     public ResourceHTTPDASH(ResourceHTTP original) {
@@ -20,6 +20,14 @@ public class ResourceHTTPDASH extends ResourceHTTP {
     public void putRepresentation(Integer id, RepresentationDASH r) {
         if(!representations.containsKey(id))
             representations.put(id, r);
+    }
+
+    public RepresentationDASH representation4URL(Resource res) {
+        for (RepresentationDASH rep: representations.values()) {
+            if (rep.containsResource(res.getFullurl()))
+                return rep;
+        }
+        return null;
     }
 
 }

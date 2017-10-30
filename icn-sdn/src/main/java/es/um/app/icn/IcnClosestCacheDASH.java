@@ -21,6 +21,9 @@
 package es.um.app.icn;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -34,9 +37,11 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -85,6 +90,19 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 e.printStackTrace();
             }
         }
+        resources.values().stream().filter(x -> {
+            if (!x.getType().equals(ResourceHTTPDASH.DESCRIPTION))
+                return false;
+            return true;
+        }).forEach(x -> {
+            ResourceHTTPDASH r = (ResourceHTTPDASH) x;
+            RepresentationDASH representationDASH = r.representation4URL(x);
+            if (representationDASH != null) {
+                // prefetch Representation
+                pool.execute(new RepresentationPrefecther(representationDASH, proxy));
+            }
+        });
+
         return super.createResource(resourceDASH == null ? resourceHTTP : resourceDASH);
     }
 
@@ -114,7 +132,6 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             codec = attributes.getNamedItem("codec").getNodeValue();
 
             RepresentationDASH r = new RepresentationDASH(id, width, height, frameRate, bandwidth, codec, mimetype);
-            //TODO: Get child urls and putResource()
             NodeList childNodes = item.getChildNodes();
             for (int idx = 0; idx < childNodes.getLength(); idx++) {
                 Node child = childNodes.item(idx);
@@ -137,6 +154,10 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             try {
                 db = dbf.newDocumentBuilder();
                 Document doc = db.parse(new InputSource(new StringReader(xml)));
+                NodeList baseURL = doc.getElementsByTagName("BaseURL");
+                if (baseURL.getLength() == 0)
+                    log.error("Unable to recover BaseURL from MPD");
+
                 NodeList representation = doc.getElementsByTagName("Representation");
                 for (int i = 0; i < representation.getLength(); i++) {
                     Node item = representation.item(i);
@@ -153,6 +174,51 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             } catch (IOException e) {
                 log.error("MPD:: Problem with MPD in XML form {}", e);
             }
+        }
+    }
+
+    class RepresentationPrefecther implements Runnable {
+
+        RepresentationDASH rep;
+        Proxy proxy;
+
+        public RepresentationPrefecther(RepresentationDASH rep, Proxy p) {
+            this.rep = rep;
+            this.proxy = p;
+        }
+
+        public void postHTTP(String uri) {
+            try {
+                URL url = new URL("http://" + proxy.getIpaddr()+"/prefetch");
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.connect();
+
+                connection.setDoOutput(true);
+                connection.setRequestMethod("POST");
+
+                ObjectMapper objectMapper = new ObjectMapper();
+                ObjectNode paramurl = objectMapper.createObjectNode();
+                paramurl.put("url", uri);
+
+                try( DataOutputStream wr = new DataOutputStream( connection.getOutputStream())) {
+                    wr.write( paramurl.toString().getBytes() );
+                }
+
+
+            } catch (MalformedURLException e) {
+                log.error("Malformed URL: {}", uri);
+                e.printStackTrace();
+            } catch (IOException e) {
+                log.error("Impossible to connect {}", uri);
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void run() {
+            rep.getFullUrls().parallelStream().forEach(url -> {
+                postHTTP(url);
+            });
         }
     }
 }

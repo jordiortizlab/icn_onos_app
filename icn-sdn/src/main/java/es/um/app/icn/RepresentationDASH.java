@@ -2,6 +2,7 @@ package es.um.app.icn;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Optional;
 
 /**
  * Created by Jordi Ortiz on 30/10/17.
@@ -14,8 +15,9 @@ public class RepresentationDASH {
     long bandwidth;
     String codec;
     String mimeType;
+    String baseURL;
     HashMap<Integer, RepresentationDASH> dependencies;
-    LinkedList<String> fullUrls;
+    LinkedList<String> urls;
 
     public RepresentationDASH(int id, int width, int height, int frameRate, long bandwidth, String codec, String mimeType) {
         this.id = id;
@@ -26,7 +28,7 @@ public class RepresentationDASH {
         this.codec = codec;
         this.mimeType = mimeType;
         dependencies = new HashMap<>();
-        fullUrls = new LinkedList<>();
+        urls = new LinkedList<>();
     }
 
     public int getId() {
@@ -61,17 +63,35 @@ public class RepresentationDASH {
         return dependencies;
     }
 
+
+    public String getBaseURL() {
+        return baseURL;
+    }
+
+    public void setBaseURL(String baseURL) {
+        this.baseURL = baseURL;
+    }
+
     public LinkedList<String> getFullUrls() {
-        return fullUrls;
+        LinkedList<String> fullurls = new LinkedList<>();
+        urls.stream().forEach(x -> fullurls.addLast(baseURL + x));
+        return fullurls;
+    }
+
+    public LinkedList<String> getUrls() {
+        return urls;
     }
 
     public boolean containsResource(String url) {
-        return fullUrls.contains(url);
+        Optional<String> first = urls.stream().filter(x -> url.equals(baseURL + x)).findFirst();
+        if (first.isPresent())
+             return true;
+        return false;
     }
 
     public void putResource(String url) {
-        if (!fullUrls.contains(url)) {
-            fullUrls.add(url);
+        if (!urls.contains(url)) {
+            urls.add(url);
         }
     }
 
