@@ -549,7 +549,7 @@ public class IcnService implements
             }
             log.info("Program path to cache {} flow {}",
                     c.name, req.flow.toString());
-            if (programPath(req.flow, p, p.getLocation(), c)) {
+            if (programProxyPath(req.flow, p, p.getLocation(), c)) {
                 log.info("Created path from proxy to cache");
                 return true;
             } else {
@@ -566,7 +566,7 @@ public class IcnService implements
      * @param mbox Middlebox where the flow is directed.
      * @return Ouput port that must be used by the input switch.
      */
-    private boolean programPath(IcnFlow originalreq, IMiddlebox proxy, Location origin, IMiddlebox mbox) {
+    private boolean programProxyPath(IcnFlow originalreq, IMiddlebox proxy, Location origin, IMiddlebox mbox) {
         log.info("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
         log.debug("Original req: {}", originalreq);
         log.debug("REST Request:  creating paths");
