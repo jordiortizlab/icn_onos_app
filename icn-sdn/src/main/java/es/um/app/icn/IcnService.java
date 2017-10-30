@@ -575,13 +575,16 @@ public class IcnService implements
         int sourceprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
         int destprefix = Ip4Address.valueOf(originalreq.daddr).toInt();
         int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
+        short proxysrcport = Short.parseShort(originalreq.getSport());
+        short proxydstport = Short.parseShort(originalreq.getDport());
+
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
         IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
         log.debug("prefix origin (proxy) {} destination (provider) {}", sourceprefix, destprefix);
         createPath(appId, pathService, flowObjectiveService,
                 sourceprefix,
                 destprefix,
-                false, (short) 0, true, UtilIcn.HTTP_PORT,
+                true, proxysrcport, true, UtilIcn.HTTP_PORT,
                 null, null, null,
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
@@ -595,7 +598,7 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
         createPath(appId, pathService, flowObjectiveService,
                 cacheprefix,
                 sourceprefix,
-                true, (short) 3128, false, (short) 0,
+                true, (short) 3128, true, proxysrcport,
                 null, null, null,
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
