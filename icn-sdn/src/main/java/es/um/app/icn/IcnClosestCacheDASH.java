@@ -53,6 +53,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     static public final String DESCRIPTION = "CLOSESTDASH";
+    static private final int PREFETCHER_PORT = 8080;
     private final ExecutorService pool;
 
     public IcnClosestCacheDASH() {
@@ -201,6 +202,8 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 ObjectMapper objectMapper = new ObjectMapper();
                 ObjectNode paramurl = objectMapper.createObjectNode();
                 paramurl.put("url", uri);
+                paramurl.put("server", proxy.getIpaddr());
+                paramurl.put("port", PREFETCHER_PORT);
 
                 try( DataOutputStream wr = new DataOutputStream( connection.getOutputStream())) {
                     wr.write( paramurl.toString().getBytes() );
