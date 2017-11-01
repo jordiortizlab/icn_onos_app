@@ -33,6 +33,7 @@ public class IcnClosestCache implements Icn {
     protected HashMap<String, Provider> providers;
     protected HashMap<String, Cache> caches;
     protected HashMap<String, ResourceHTTP> resources;
+    protected IcnService icnservice;
 
     static public final String DESCRIPTION = "CLOSEST";
 
@@ -165,4 +166,8 @@ public class IcnClosestCache implements Icn {
         this.description = description;
     }
 
+    @Override
+    public void setIcnService(IcnService service) {
+        icnservice = service;
+    }
 }

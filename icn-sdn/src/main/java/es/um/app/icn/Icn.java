@@ -34,5 +34,6 @@ public interface Icn {
     void setName(String name);
     String getDescription();
     void setDescription(String description);
+    void setIcnService(IcnService service);
     String getType();
 }

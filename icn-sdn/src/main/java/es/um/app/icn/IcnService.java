@@ -719,6 +719,7 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
 		
 	@Override
 	public Icn createIcn(Icn icn) {
+        icn.setIcnService(this);
 		icns.put(icn.getName(), icn);
 		return icn;
 	}
