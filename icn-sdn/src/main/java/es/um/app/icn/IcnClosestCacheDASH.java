@@ -24,6 +24,10 @@ package es.um.app.icn;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.onlab.packet.Ip4Address;
+import org.onosproject.net.DeviceId;
+import org.onosproject.net.Port;
+import org.onosproject.net.PortNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -222,6 +226,23 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
         @Override
         public void run() {
             rep.getFullUrls().parallelStream().forEach(url -> {
+                ResourceHTTP resourceHTTP = retrieveResource(url);
+                Cache c = null;
+                if (resourceHTTP == null) {
+                    c = findCacheForNewResource(icnservice, url, DeviceId.deviceId(proxy.getLocation().getDpid()),
+                            PortNumber.portNumber(proxy.getLocation().getPort()));
+                } else {
+                    c = findCacheForExistingResource(icnservice, url, DeviceId.deviceId(proxy.getLocation().getDpid()),
+                            PortNumber.portNumber(proxy.getLocation().getPort()));
+                }
+
+                Ip4Address icnAddress;
+                Port icnPort;
+                if(!icnservice.createPrefetchingPath(proxy, proxy.location, c, icnAddress, icnPort)){
+                    log.error("Unable to create prefetching path. Aborting\n {} {} {} {} {}",
+                            proxy, proxy.location, c, icnAddress, icnPort);
+                    return;
+                }
                 postHTTP(url);
             });
         }

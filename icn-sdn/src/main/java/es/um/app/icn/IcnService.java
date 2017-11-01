@@ -615,7 +615,34 @@ true, cacheMac,
 	}
 
     @Override
-    public boolean createPrefetchingPath(IMiddlebox proxy, Location origin, IMiddlebox mbox, Ip4Address icnAddress, Port icnPort) {
+    public boolean createPrefetchingPath(IMiddlebox proxy, Location origin, IMiddlebox mbox, Ip4Address icnAddress, short icnPort) {
+        int proxyprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
+        int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
+        MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
+
+        IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
+
+
+        if(!createPath(appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
+                true, icnPort, null, null, null,
+                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                false, null, false, null, false, null,
+                true, ipcacheprefix, true, cacheMac, true, TpPort.tpPort(3128))) {
+            log.error("createPrefetchingPath: Unable to create path between proxy and cache");
+            return false;
+        }
+
+        if(!createPath(appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
+                true, icnPort, null, null, null,
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
+                true, icnAddress, false, null, true, TpPort.tpPort(icnPort),
+                false, null, false, null, false, null)) {
+            log.error("createPrefetchingPath: Unable to create path between cache and proxy");
+            return false;
+        }
+
         return false;
     }
 

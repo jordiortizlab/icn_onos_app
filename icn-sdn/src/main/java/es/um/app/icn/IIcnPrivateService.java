@@ -1,5 +1,5 @@
 /**
- *    Copyright 2014, University of Murcia (Spain)
+ *    Copyright 2017, University of Murcia (Spain)
  *
  *    Licensed under the Apache License, Version 2.0 (the "License"); you may
  *    not use this file except in compliance with the License. You may obtain
@@ -21,7 +21,6 @@
 package es.um.app.icn;
 
 import org.onlab.packet.Ip4Address;
-import org.onosproject.net.Port;
 
 /**
  * Private API exported to proxies.
@@ -37,5 +36,5 @@ public interface IIcnPrivateService {
     public boolean processResourceRequest(ProxyRequest req);
 
     public boolean createPrefetchingPath(IMiddlebox proxy, Location origin, IMiddlebox mbox,
-                                         Ip4Address icnAddress, Port icnPort);
+                                         Ip4Address icnAddress, short icnPort);
 }
