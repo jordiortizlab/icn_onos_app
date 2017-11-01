@@ -577,6 +577,8 @@ public class IcnService implements
         int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
         short proxysrcport = Short.parseShort(originalreq.getSport());
         short proxydstport = Short.parseShort(originalreq.getDport());
+        MacAddress originalMac = MacAddress.valueOf(originalreq.getDmac());
+        MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
 
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
         IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
@@ -592,7 +594,7 @@ public class IcnService implements
 false,null,
                 false, null,
                 true, ipcacheprefix,
-true, MacAddress.valueOf(mbox.getMacaddr()),
+true, cacheMac,
                 true, TpPort.tpPort(3128)); //TODO: Add port to cache definition in json
 
         createPath(appId, pathService, flowObjectiveService,
@@ -603,7 +605,7 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
                 true, ipdestprefix,
-                true, MacAddress.valueOf(originalreq.getDmac()),
+                true, originalMac,
                 true, TpPort.tpPort(UtilIcn.HTTP_PORT),
                 false, null,
                 false, null,
