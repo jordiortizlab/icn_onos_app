@@ -572,8 +572,8 @@ public class IcnService implements
         log.debug("REST Request:  creating paths");
         log.debug("origin: {}, mbox {}", origin.toString(), mbox.toString());
         //TODO: What about ipv6??
-        int sourceprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
-        int destprefix = Ip4Address.valueOf(originalreq.daddr).toInt();
+        int proxyprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
+        int originaldestprefix = Ip4Address.valueOf(originalreq.daddr).toInt();
         int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
         short proxysrcport = Short.parseShort(originalreq.getSport());
         short proxydstport = Short.parseShort(originalreq.getDport());
@@ -582,10 +582,10 @@ public class IcnService implements
 
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
         IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
-        log.debug("prefix origin (proxy) {} destination (provider) {}", sourceprefix, destprefix);
+        log.debug("prefix origin (proxy) {} destination (provider) {}", proxyprefix, originaldestprefix);
         if(!createPath(appId, pathService, flowObjectiveService,
-                sourceprefix,
-                destprefix,
+                proxyprefix,
+                originaldestprefix,
                 true, proxysrcport, true, UtilIcn.HTTP_PORT,
                 null, null, null,
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
@@ -602,7 +602,7 @@ true, cacheMac,
 
         if (!createPath(appId, pathService, flowObjectiveService,
                 cacheprefix,
-                sourceprefix,
+                proxyprefix,
                 true, (short) 3128, true, proxysrcport,
                 null, null, null,
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
