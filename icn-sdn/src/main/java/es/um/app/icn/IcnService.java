@@ -611,8 +611,13 @@ true, MacAddress.valueOf(mbox.getMacaddr()),
 
         return true;
 	}
-	
-	private IcnFlow reverseFlow(IcnFlow flow) {
+
+    @Override
+    public boolean createPrefetchingPath(IMiddlebox proxy, Location origin, IMiddlebox mbox, Ip4Address icnAddress, Port icnPort) {
+        return false;
+    }
+
+    private IcnFlow reverseFlow(IcnFlow flow) {
 		IcnFlow reverseFlow = new IcnFlow();
     	if (flow.dltype != null)
     		reverseFlow.dltype = flow.dltype;

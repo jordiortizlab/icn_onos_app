@@ -20,6 +20,9 @@
 
 package es.um.app.icn;
 
+import org.onlab.packet.Ip4Address;
+import org.onosproject.net.Port;
+
 /**
  * Private API exported to proxies.
  * 
@@ -27,10 +30,12 @@ package es.um.app.icn;
  */
 public interface IIcnPrivateService {
 
-	/**
-	 * Handle resource requested as notified by a proxy.
-	 * @param req Request forwarded by the proxy.
-	 */
-	public boolean processResourceRequest(ProxyRequest req);
-	
+    /**
+     * Handle resource requested as notified by a proxy.
+     * @param req Request forwarded by the proxy.
+     */
+    public boolean processResourceRequest(ProxyRequest req);
+
+    public boolean createPrefetchingPath(IMiddlebox proxy, Location origin, IMiddlebox mbox,
+                                         Ip4Address icnAddress, Port icnPort);
 }
