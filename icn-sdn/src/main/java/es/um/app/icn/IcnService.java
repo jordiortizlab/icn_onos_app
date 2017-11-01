@@ -583,7 +583,7 @@ public class IcnService implements
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
         IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
         log.debug("prefix origin (proxy) {} destination (provider) {}", sourceprefix, destprefix);
-        createPath(appId, pathService, flowObjectiveService,
+        if(!createPath(appId, pathService, flowObjectiveService,
                 sourceprefix,
                 destprefix,
                 true, proxysrcport, true, UtilIcn.HTTP_PORT,
@@ -595,9 +595,12 @@ false,null,
                 false, null,
                 true, ipcacheprefix,
 true, cacheMac,
-                true, TpPort.tpPort(3128)); //TODO: Add port to cache definition in json
+                true, TpPort.tpPort(3128))) { //TODO: Add port to cache definition in json
+            log.error("programProxyPath(): Unable to create path from proxy to cache");
+        return false;
+        }
 
-        createPath(appId, pathService, flowObjectiveService,
+        if (!createPath(appId, pathService, flowObjectiveService,
                 cacheprefix,
                 sourceprefix,
                 true, (short) 3128, true, proxysrcport,
@@ -609,7 +612,10 @@ true, cacheMac,
                 true, TpPort.tpPort(UtilIcn.HTTP_PORT),
                 false, null,
                 false, null,
-                false, null);
+                false, null)) {
+            log.error("programProxyPath(): Unable to create path from cache to proxy");
+            return false;
+        }
 
         return true;
 	}
