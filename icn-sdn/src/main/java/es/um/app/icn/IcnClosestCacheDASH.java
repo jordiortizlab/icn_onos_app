@@ -22,11 +22,9 @@ package es.um.app.icn;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.net.DeviceId;
-import org.onosproject.net.Port;
 import org.onosproject.net.PortNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,13 +54,50 @@ import java.util.concurrent.Executors;
 public class IcnClosestCacheDASH extends IcnClosestCache {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    static public final String DESCRIPTION = "CLOSESTDASH";
+    static final String DESCRIPTION = "CLOSESTDASH";
     static private final int PREFETCHER_PORT = 8080;
+    static private final Long MIN_PREFETCHING_IP = 2886729729L; //172.16.0.1
+    static private final Long MAX_PREFETCHING_IP = 2887778303L; //172.31.255.255
+    static private final short MIN_PREFETCHING_PORT = 1;
+    static private final short MAX_PREFETCHING_PORT = Short.MAX_VALUE;
     private final ExecutorService pool;
+
+    private long prefetching_ip = 167772160;
+    private short prefetching_port = 1;
 
     public IcnClosestCacheDASH() {
         super();
         pool = Executors.newFixedThreadPool(1);
+    }
+
+    /**
+     * Advances first the port until the limit. Then the ip until the limit and rotates.
+     * @return
+     */
+    private void generateNewPrefetchingIpandPort() {
+        prefetching_port++;
+        if (prefetching_port == MAX_PREFETCHING_PORT) {
+            prefetching_port = MIN_PREFETCHING_PORT;
+            prefetching_ip++;
+            if (prefetching_ip == MAX_PREFETCHING_IP)
+                prefetching_ip = MIN_PREFETCHING_IP;
+        }
+    }
+
+    private Long getPrefetchingIp() {
+        return prefetching_ip;
+    }
+
+    private short getPrefetchingPort() {
+        return prefetching_port;
+    }
+
+    private String getPrefetchingIpStr() {
+            return ((prefetching_ip >> 24) & 0xFF) + "."
+                    + ((prefetching_ip >> 16) & 0xFF) + "."
+                    + ((prefetching_ip >> 8) & 0xFF) + "."
+                    + (prefetching_ip & 0xFF);
+
     }
 
     @Override
@@ -236,8 +271,10 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                             PortNumber.portNumber(proxy.getLocation().getPort()));
                 }
 
-                Ip4Address icnAddress;
-                Port icnPort;
+                // Generate a new icn
+                generateNewPrefetchingIpandPort();
+                Ip4Address icnAddress = Ip4Address.valueOf(getPrefetchingIpStr());
+                short icnPort = getPrefetchingPort();
                 if(!icnservice.createPrefetchingPath(proxy, proxy.location, c, icnAddress, icnPort)){
                     log.error("Unable to create prefetching path. Aborting\n {} {} {} {} {}",
                             proxy, proxy.location, c, icnAddress, icnPort);
