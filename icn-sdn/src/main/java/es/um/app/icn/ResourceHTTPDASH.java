@@ -15,6 +15,7 @@ public class ResourceHTTPDASH extends ResourceHTTP {
         this.setFullurl(original.getFullurl());
         this.setName(original.getName());
         this.setRequests(original.getRequests());
+        representations = new HashMap<>();
     }
 
     public void putRepresentation(Integer id, RepresentationDASH r) {
