@@ -169,16 +169,21 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             height = Integer.parseInt(attributes.getNamedItem("height").getNodeValue());
             frameRate = Integer.parseInt(attributes.getNamedItem("frameRate").getNodeValue());
             bandwidth = Long.parseLong(attributes.getNamedItem("bandwidth").getNodeValue());
-            codec = attributes.getNamedItem("codec").getNodeValue();
+            codec = attributes.getNamedItem("codecs").getNodeValue();
 
             RepresentationDASH r = new RepresentationDASH(id, width, height, frameRate, bandwidth, codec, mimetype);
             NodeList childNodes = item.getChildNodes();
             for (int idx = 0; idx < childNodes.getLength(); idx++) {
                 Node child = childNodes.item(idx);
-                if (child.getNodeName().equalsIgnoreCase("SegmentURL")) {
-                    Node media = child.getAttributes().getNamedItem("media");
-                    String url = media.getNodeValue();
-                    r.putResource(url);
+                if (child.getNodeName().equals("SegmentList")) {
+                    for (int idx2 = 0; idx2 < child.getChildNodes().getLength(); idx2++) {
+                        Node child2 = child.getChildNodes().item(idx2);
+                        if (child2.getNodeName().equalsIgnoreCase("SegmentURL")) {
+                            Node media = child2.getAttributes().getNamedItem("media");
+                            String url = media.getNodeValue();
+                            r.putResource(url);
+                        }
+                    }
                 }
             }
 
