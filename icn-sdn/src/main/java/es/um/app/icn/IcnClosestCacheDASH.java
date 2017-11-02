@@ -152,6 +152,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
         public MPDParser(String xml, ResourceHTTPDASH resource) {
             this.xml = xml;
+            this.resource = resource;
         }
 
         private RepresentationDASH parseRepresentation(Node item) {
