@@ -38,6 +38,7 @@ import org.xml.sax.SAXException;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -106,27 +107,14 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
         if (resourceHTTP.getFilename().endsWith(".mpd") || resourceHTTP.getFilename().endsWith("*.MPD")) {
             // It is an MPD. Let's download it and populate caches
             log.info("Downloading MPD file {}", resourceHTTP.getFullurl());
-            String mpd = "";
             try {
                 URL url = new URL(resourceHTTP.getFullurl());
-                URLConnection connection = url.openConnection();
-                connection.connect();
 
-                String inputLine;
-                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-                while ((inputLine = in.readLine()) != null) {
-                    log.debug("Appending {}", inputLine);
-                    mpd = mpd.concat(inputLine);
-                }
-                in.close();
                 resourceDASH = new ResourceHTTPDASH(resourceHTTP);
-                // Here we can make actions for the mpd in xml form
-                pool.execute(new MPDParser(mpd, resourceDASH));
+                // Here we can make actions for the mpd in url form
+                pool.execute(new MPDParser(url, resourceDASH));
             } catch (MalformedURLException e) {
                 log.error("Malformed URL: {}", resourceHTTP.getFullurl());
-                e.printStackTrace();
-            } catch (IOException e) {
-                log.error("Impossible to connect {}", resourceHTTP.getFullurl());
                 e.printStackTrace();
             }
         }
@@ -147,11 +135,11 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
     }
 
     class MPDParser implements Runnable {
-        private String xml;
+        private URL url;
         private ResourceHTTPDASH resource;
 
-        public MPDParser(String xml, ResourceHTTPDASH resource) {
-            this.xml = xml;
+        public MPDParser(URL url, ResourceHTTPDASH resource) {
+            this.url = url;
             this.resource = resource;
         }
 
@@ -194,12 +182,32 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
         @Override
         public void run() {
+            log.info("Start download and parse: {}", url);
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             DocumentBuilder db = null;
-            log.debug("Parsing: {}", xml);
+            StringBuilder mpd = new StringBuilder("");
+            byte []buffer = new byte[5192];
+            buffer[5191] = '\0';
+            try {
+                URLConnection connection = url.openConnection();
+                connection.connect();
+
+                BufferedInputStream bis = new BufferedInputStream(connection.getInputStream());
+                int numberOfBytes;
+                do {
+                    numberOfBytes = bis.read(buffer, 0, 5191);
+                    if (numberOfBytes > 0)
+                        mpd.append(new String(buffer, 0, numberOfBytes));
+                } while (numberOfBytes >= 0);
+                bis.close();
+            } catch (IOException e) {
+                log.error("Impossible to connect {}", url);
+                return;
+            }
+
             try {
                 db = dbf.newDocumentBuilder();
-                Document doc = db.parse(new InputSource(new StringReader(xml)));
+                Document doc = db.parse(new InputSource(new StringReader(mpd.toString())));
                 NodeList baseURL = doc.getElementsByTagName("BaseURL");
                 if (baseURL.getLength() == 0)
                     log.error("Unable to recover BaseURL from MPD");
@@ -207,19 +215,17 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 NodeList representation = doc.getElementsByTagName("Representation");
                 for (int i = 0; i < representation.getLength(); i++) {
                     Node item = representation.item(i);
-                    log.info("Representation: {}", item);
-
                     RepresentationDASH representationDASH = parseRepresentation(item);
                     resource.putRepresentation(representationDASH.id, representationDASH);
                 }
             } catch (ParserConfigurationException e) {
                 log.error("MPD:: Impossible to configure XML Parser {}", e);
-                e.printStackTrace();
             } catch (SAXException e) {
                 log.error("MPD:: Parse error {}", e);
             } catch (IOException e) {
                 log.error("MPD:: Problem with MPD in XML form {}", e);
             }
+            log.info("Finish download and parse: {}", url);
         }
     }
 
