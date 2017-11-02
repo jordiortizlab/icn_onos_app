@@ -31,4 +31,8 @@ public class ResourceHTTPDASH extends ResourceHTTP {
         return null;
     }
 
+    @Override
+    public String toString() {
+        return super.toString() + "DASH representations: " + representations.size();
+    }
 }
