@@ -196,7 +196,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
         public void run() {
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             DocumentBuilder db = null;
-            log.info("Parsing: {}", xml);
+            log.debug("Parsing: {}", xml);
             try {
                 db = dbf.newDocumentBuilder();
                 Document doc = db.parse(new InputSource(new StringReader(xml)));
