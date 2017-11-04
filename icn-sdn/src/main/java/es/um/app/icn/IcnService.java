@@ -160,7 +160,7 @@ public class IcnService implements
     }
 
     protected static boolean createPath(ApplicationId appId, PathService pathService, FlowObjectiveService flowObjectiveService,
-                                        int matchIpsrc, int matchIpDst, boolean matchPortSrc, short srcport, boolean matchPortDst, short dstport,
+                                        int matchIpsrc, int matchIpDst, boolean matchPortSrc, int srcport, boolean matchPortDst, int dstport,
                                         Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
                                         ConnectPoint source, ConnectPoint destination,
                                         boolean rewriteSourceIP, IpAddress rwsourceAddr,
@@ -575,9 +575,9 @@ public class IcnService implements
         int proxyprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
         int originaldestprefix = Ip4Address.valueOf(originalreq.daddr).toInt();
         int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
-        short proxysrcport = Short.parseShort(originalreq.getSport());
-        short proxydstport = Short.parseShort(originalreq.getDport());
-        MacAddress originalMac = MacAddress.valueOf(originalreq.getDmac());
+        int proxysrcport = Integer.parseInt(originalreq.getSport());
+        int proxydstport = Integer.parseInt(originalreq.getDport());
+        MacAddress originalMac = originalreq.getDmac() != null ? MacAddress.valueOf(originalreq.getDmac()) : null;
         MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
 
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
@@ -608,7 +608,7 @@ true, cacheMac,
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
                 true, ipdestprefix,
-                true, originalMac,
+                true, cacheMac,
                 true, TpPort.tpPort(UtilIcn.HTTP_PORT),
                 false, null,
                 false, null,
@@ -616,6 +616,8 @@ true, cacheMac,
             log.error("programProxyPath(): Unable to create path from cache to proxy");
             return false;
         }
+
+        log.debug("Proxy paths created successfully");
 
         return true;
 	}
