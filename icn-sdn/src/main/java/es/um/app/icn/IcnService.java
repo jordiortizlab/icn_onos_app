@@ -25,12 +25,17 @@ import java.util.*;
 import java.util.stream.Stream;
 
 import org.apache.felix.scr.annotations.*;
+import org.omg.CORBA.INTERNAL;
 import org.onlab.packet.*;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
 import org.onosproject.net.*;
 import org.onosproject.net.flow.DefaultTrafficSelector;
 import org.onosproject.net.flow.DefaultTrafficTreatment;
+import org.onosproject.net.flow.FlowRule;
+import org.onosproject.net.flow.FlowRuleEvent;
+import org.onosproject.net.flow.FlowRuleListener;
+import org.onosproject.net.flow.FlowRuleService;
 import org.onosproject.net.flow.TrafficSelector;
 import org.onosproject.net.flow.TrafficTreatment;
 import org.onosproject.net.flowobjective.DefaultForwardingObjective;
@@ -93,6 +98,10 @@ public class IcnService implements
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected PathService pathService;
 
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected FlowRuleService flowRuleService;
+
+
 
     /** APPId */
     private ApplicationId appId;
@@ -103,6 +112,7 @@ public class IcnService implements
     protected HashMap<IntentId, Intent> installedIntents;
 
     private IcnPacketProcessor icnPacketProcessor = new IcnPacketProcessor();
+    private InternalFlowListener flowListener = new InternalFlowListener();
 
     @Activate
     public void activate() {
@@ -115,6 +125,8 @@ public class IcnService implements
         installedIntents = new HashMap<>();
         // Install Processor
         packetService.addProcessor(icnPacketProcessor, PacketProcessor.director(PROCESSOR_PRIORITY));
+
+        flowRuleService.addListener(flowListener);
 
         requestPackets();
 
@@ -129,6 +141,8 @@ public class IcnService implements
         installedIntents.clear();
         withdrawIntercepts();
         packetService.removeProcessor(icnPacketProcessor);
+        flowRuleService.removeListener(flowListener);
+
     }
 
     @Modified
@@ -858,4 +872,17 @@ true, cacheMac,
             log.info("sending packet: {}", packet);
         }
     }
+
+    class InternalFlowListener implements FlowRuleListener {
+
+        @Override
+        public void event(FlowRuleEvent flowRuleEvent) {
+            FlowRule flowRule = flowRuleEvent.subject();
+            if (flowRuleEvent.type().equals(FlowRuleEvent.Type.RULE_REMOVED) &&
+                    flowRule.appId() == appId.id()) {
+                // One of our rules has been removed
+            }
+        }
+    }
+
 }
