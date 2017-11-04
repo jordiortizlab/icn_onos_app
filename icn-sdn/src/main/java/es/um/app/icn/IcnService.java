@@ -169,7 +169,7 @@ public class IcnService implements
         // TODO: Missing IPv6
     }
 
-    protected static boolean createPath(ApplicationId appId, PathService pathService, FlowObjectiveService flowObjectiveService,
+    protected boolean createPath(ApplicationId appId, PathService pathService, FlowObjectiveService flowObjectiveService,
                                         int matchIpsrc, int matchIpDst, boolean matchPortSrc, int srcport, boolean matchPortDst, int dstport,
                                         Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
                                         ConnectPoint source, ConnectPoint destination,
@@ -826,7 +826,7 @@ true, cacheMac,
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
             log.debug("Packet Processor creating paths");
             // Create path from host to proxy
-            boolean toproxy = IcnService.createPath(appId, pathService, flowObjectiveService,
+            boolean toproxy = createPath(appId, pathService, flowObjectiveService,
                     ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
                     false, (short)0,true, UtilIcn.HTTP_PORT,
                     ethPkt, ipv4Pkt, tcpPkt,
@@ -835,7 +835,7 @@ true, cacheMac,
                     true, outaddress, true, outl2address, false, null);
             log.info("Path created toproxy {}", toproxy);
             // Create return intent
-            boolean fromproxy = IcnService.createPath(appId, pathService, flowObjectiveService,
+            boolean fromproxy = createPath(appId, pathService, flowObjectiveService,
                     outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(),
                     true, UtilIcn.HTTP_PORT,false, (short) 0,
                     ethPkt, ipv4Pkt, tcpPkt,
