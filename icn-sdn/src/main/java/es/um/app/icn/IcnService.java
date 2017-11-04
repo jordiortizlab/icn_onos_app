@@ -87,8 +87,8 @@ public class IcnService implements
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected TopologyService topologyService;
 
-	@Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
-	protected IntentService intentService;
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected IntentService intentService;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected PathService pathService;
@@ -97,11 +97,11 @@ public class IcnService implements
     /** APPId */
     private ApplicationId appId;
 
-	/** We need to register with the provider to receive OF messages */
-	protected HashMap<String, Icn> icns;
-	protected HashMap<String, Proxy> proxies;
-	protected HashMap<IntentId, Intent> installedIntents;
-	
+    /** We need to register with the provider to receive OF messages */
+    protected HashMap<String, Icn> icns;
+    protected HashMap<String, Proxy> proxies;
+    protected HashMap<IntentId, Intent> installedIntents;
+
     private IcnPacketProcessor icnPacketProcessor = new IcnPacketProcessor();
 
     @Activate
@@ -288,6 +288,408 @@ public class IcnService implements
         return true;
     }
 
+    /**
+     * Program required flows when a proxy informs that a resource is being
+     * requested.
+     * @param req
+     */
+    public boolean processResourceRequest(ProxyRequest req) {
+        log.info("Process resource request from proxy {} for host {} and flow {}",
+                req.proxy, req.hostname, req.flow.toString());
+
+        Optional<Proxy> optproxy = proxies.values().stream().filter(p -> p.getMacaddr().equalsIgnoreCase(req.getProxy())).findFirst();
+        if (!optproxy.isPresent()) {
+            log.error("Unable to find a proxy in icn for mac{}", req.getProxy());
+            return false;
+        }
+
+
+        // Get the providers related to this request (if any)
+        Collection<Provider> providers =
+                findProvidersFromAddress(IPv4.toIPv4Address(req.flow.daddr));
+        if (providers.isEmpty()) {
+            log.warn("No provider for proxy request: proxy {} hostname {}",
+                    req.proxy, req.hostname);
+            return false;
+        }
+
+        String resourceName = req.uri;
+        int idx = resourceName.indexOf('?');
+        if (idx > 0)
+            resourceName = resourceName.substring(0, idx);
+
+        Proxy p = optproxy.get();
+        List<Provider> providerList = providers.parallelStream()
+                .filter(prov -> (prov.matchUriPattern(req.uri) != null) &&
+                        (prov.matchHostPattern(req.getHostname()) != null))
+                .limit(1).collect(toList());
+        if (providerList.isEmpty()) {
+            log.info("Not matching provider for url {}", req.uri);
+            return false;
+        }
+        Provider provider = providerList.get(0);
+        log.info("Checking provider: {}", provider.getName());
+        String uri = provider.matchUriPattern(req.uri);
+
+        Optional<Icn> icnfirst = icns.values().parallelStream().filter(x -> {
+            Cache c = null;
+            if (!x.retrieveProviders().contains(provider))
+                return false;
+            return true;
+        }).findFirst();
+        if (!icnfirst.isPresent()) {
+            log.error("No ICN found for provider {}", provider);
+            return false;
+        }
+
+        // We have in icnfirst the first ICN that accomplishes previous checks
+        Icn icn = icnfirst.get();
+
+        Cache c = null;
+        ResourceHTTP resourceHTTP = null;
+        if ( (resourceHTTP = icn.retrieveResource(uri)) != null) {
+            // ResourceHTTP already cached
+            c =  icn.findCacheForExistingResource(this,
+                    uri, DeviceId.deviceId(p.getLocation().getDpid()),
+                    PortNumber.portNumber(p.getLocation().getPort()));
+            log.info("Existing resourceHTTP {} in ICN {} to cache {}",
+                    uri, icn.getName(), c.name);
+        } else {
+            // New resourceHTTP
+            c = icn.findCacheForNewResource(this,
+                    uri, DeviceId.deviceId(p.getLocation().getDpid()),
+                    PortNumber.portNumber(p.getLocation().getPort()));
+        }
+
+        log.info("Program path to cache {} flow {}",
+                c.name, req.flow.toString());
+        if (programProxyPath(req.flow, p, p.getLocation(), c)) {
+            log.info("Created path from proxy to cache");
+        } else {
+            log.error("Unable to create path from proxy to cache");
+            return false;
+        }
+
+        // Resource management
+        if (resourceHTTP != null) {
+            // TODO: Increment resourceHTTP requests
+            req.flow.setDmac(c.macaddr);
+        } else {
+            ResourceHTTP res = new ResourceHTTP();
+            res.setId(UtilIcn.resourceId(icn.getName(), uri));
+            res.setName(uri);
+            res.setRequests(1);
+            res.addCache(c);
+            res.setFullurl("http://" + req.getHostname() + "/" + req.getUri()); // TODO: Make this more dynamic
+            icn.createResource(res, p);
+            log.info("New resourceHTTP {} in ICN {} to cache {}",
+                    res, icn.getName(), c.name);
+            req.flow.setDmac(c.macaddr);
+        }
+
+        return true;
+    }
+
+    /**
+     * Compute route from an input switch to a middlebox's switch, and issue
+     * corresponding FlowMod messages for the given flow.
+     * @param origin Input location
+     * @param mbox Middlebox where the flow is directed.
+     * @return Ouput port that must be used by the input switch.
+     */
+    private boolean programProxyPath(IcnFlow originalreq, IMiddlebox proxy, Location origin, IMiddlebox mbox) {
+        log.info("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
+        log.debug("Original req: {}", originalreq);
+        log.debug("REST Request:  creating paths");
+        log.debug("origin: {}, mbox {}", origin.toString(), mbox.toString());
+        //TODO: What about ipv6??
+        int proxyprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
+        int originaldestprefix = Ip4Address.valueOf(originalreq.daddr).toInt();
+        int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
+        int proxysrcport = Integer.parseInt(originalreq.getSport());
+        int proxydstport = Integer.parseInt(originalreq.getDport());
+        MacAddress originalMac = originalreq.getDmac() != null ? MacAddress.valueOf(originalreq.getDmac()) : null;
+        MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
+
+        IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
+        IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
+        log.debug("prefix origin (proxy) {} destination (provider) {}", proxyprefix, originaldestprefix);
+        if(!createPath(appId, pathService, flowObjectiveService,
+                proxyprefix,
+                originaldestprefix,
+                true, proxysrcport, true, UtilIcn.HTTP_PORT,
+                null, null, null,
+                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                false, null,
+false,null,
+                false, null,
+                true, ipcacheprefix,
+true, cacheMac,
+                true, TpPort.tpPort(3128))) { //TODO: Add port to cache definition in json
+            log.error("programProxyPath(): Unable to create path from proxy to cache");
+        return false;
+        }
+
+        if (!createPath(appId, pathService, flowObjectiveService,
+                cacheprefix,
+                proxyprefix,
+                true, (short) 3128, true, proxysrcport,
+                null, null, null,
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
+                true, ipdestprefix,
+                true, cacheMac,
+                true, TpPort.tpPort(UtilIcn.HTTP_PORT),
+                false, null,
+                false, null,
+                false, null)) {
+            log.error("programProxyPath(): Unable to create path from cache to proxy");
+            return false;
+        }
+
+        log.debug("Proxy paths created successfully");
+
+        return true;
+    }
+
+    @Override
+    public boolean createPrefetchingPath(IMiddlebox proxy, Location origin, IMiddlebox mbox, Ip4Address icnAddress, short icnPort) {
+        int proxyprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
+        int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
+        MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
+
+        IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
+
+
+        if(!createPath(appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
+                true, icnPort, null, null, null,
+                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                false, null, false, null, false, null,
+                true, ipcacheprefix, true, cacheMac, true, TpPort.tpPort(3128))) {
+            log.error("createPrefetchingPath: Unable to create path between proxy and cache");
+            return false;
+        }
+
+        if(!createPath(appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
+                true, icnPort, null, null, null,
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
+                true, icnAddress, false, null, true, TpPort.tpPort(icnPort),
+                false, null, false, null, false, null)) {
+            log.error("createPrefetchingPath: Unable to create path between cache and proxy");
+            return false;
+        }
+
+        return false;
+    }
+
+    private IcnFlow reverseFlow(IcnFlow flow) {
+        IcnFlow reverseFlow = new IcnFlow();
+        if (flow.dltype != null)
+            reverseFlow.dltype = flow.dltype;
+        if (flow.proto != null)
+            reverseFlow.proto = flow.proto;
+        if (flow.saddr != null)
+            reverseFlow.daddr = flow.saddr;
+        if (flow.daddr != null)
+            reverseFlow.saddr = flow.daddr;
+        if (flow.sport != null)
+            reverseFlow.dport = flow.sport;
+        if (flow.dport != null)
+            reverseFlow.sport = flow.dport;
+
+        return reverseFlow;
+    }
+
+    protected Collection<Provider> findProvidersFromAddress(int ip) {
+        Collection<Provider> providers = new HashSet<Provider>();
+        for (Icn c : icns.values()) {
+            for (Provider p: c.retrieveProviders()) {
+                if (p.containsIpAddress(ip))
+                    providers.add(p);
+            }
+        }
+        return providers;
+    }
+
+    protected Proxy findProxy(String macaddr) {
+        for (Proxy p: proxies.values()) {
+            if (macaddr.equalsIgnoreCase(p.macaddr))
+                return p;
+        }
+        return null;
+    }
+
+    protected IMiddlebox findClosestMiddlebox(Collection<? extends IMiddlebox> middleboxes,
+                                              DeviceId sw, PortNumber inPort) {
+        IMiddlebox mbox = null;
+        int minLen = Integer.MAX_VALUE;
+
+        for (IMiddlebox m: middleboxes) {
+            String mboxDeviceId = null;
+            if (m.getLocation() == null) {
+                // There was no info in the config json about location. Try to find the host
+                Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(m.getMacaddr()));
+                if (hostsByMac.isEmpty())
+                    continue;
+                if (hostsByMac.size() > 1)
+                    log.warn("More than one host per mac, multiple links for same host? {}", m.getMacaddr());
+                for (Host host : hostsByMac) {
+                    mboxDeviceId = host.location().deviceId().toString();
+                }
+            } else {
+                // Get info about middlebox location from config
+                mboxDeviceId = m.getLocation().dpid;
+            }
+
+            Topology topology = topologyService.currentTopology();
+            log.debug("Paths in topology: {}", topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId)));
+
+            Set<Path> paths = topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId));
+            if (sw.toString().equals(mboxDeviceId))
+            {
+                // Middlebox and host on the same device. No path needed. No need to look for best path.
+                mbox = m;
+                continue;
+            } else {
+                for (Path path : paths) {
+                    if (path.links().size() < minLen) { // TODO: Here we could take into account other metrics rather than number of links
+                        minLen = path.links().size();
+                        mbox = m;
+                    }
+                }
+            }
+        }
+        return mbox;
+    }
+
+    protected Cache findCache(String macaddr) {
+        for (Icn icn : icns.values()) {
+            for (Cache cache: icn.retrieveCaches()) {
+                if (macaddr.equalsIgnoreCase(cache.macaddr))
+                    return cache;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public Collection<Icn> retrieveIcns() {
+        return icns.values();
+    }
+
+    @Override
+    public Icn retrieveIcn(String name) {
+        return icns.get(name);
+    }
+
+    @Override
+    public Icn createIcn(Icn icn) {
+        icn.setIcnService(this);
+        icns.put(icn.getName(), icn);
+        return icn;
+    }
+
+    @Override
+    public Icn updateIcn(Icn icn) {
+        icns.put(icn.getName(), icn);
+        return icn;
+    }
+
+    @Override
+    public Icn removeIcn(String name) {
+        return icns.remove(name);
+    }
+
+    @Override
+    public Collection<Provider> retrieveProviders(Icn icn) {
+        return icn.retrieveProviders();
+    }
+
+    @Override
+    public Provider retrieveProvider(Icn icn, String name) {
+        return icn.retrieveProvider(name);
+    }
+
+    @Override
+    public Provider createProvider(Icn icn, Provider provider) {
+        return icn.createProvider(provider);
+    }
+
+    @Override
+    public Provider updateProvider(Icn icn, Provider provider) {
+        return icn.updateProvider(provider);
+    }
+
+    @Override
+    public Provider removeProvider(Icn icn, String name) {
+        return icn.removeProvider(name);
+    }
+
+    @Override
+    public Collection<Cache> retrieveCaches(Icn icn) {
+        return icn.retrieveCaches();
+    }
+
+    @Override
+    public Cache retrieveCache(Icn icn, String name) {
+        return icn.retrieveCache(name);
+    }
+
+    @Override
+    public Cache createCache(Icn icn, Cache cache) {
+        return icn.createCache(cache);
+    }
+
+    @Override
+    public Cache updateCache(Icn icn, Cache cache) {
+        return icn.updateCache(cache);
+    }
+
+    @Override
+    public Cache removeCache(Icn icn, String name) {
+        return icn.removeCache(name);
+    }
+
+    @Override
+    public Collection<ResourceHTTP> retrieveResources(Icn icn) {
+        return icn.retrieveResources();
+    }
+
+    @Override
+    public ResourceHTTP retrieveResource(Icn icn, String id) {
+        return icn.retrieveResource(id);
+    }
+
+    @Override
+    public Collection<Proxy> retrieveProxies() {
+        return proxies.values();
+    }
+
+    @Override
+    public Proxy retrieveProxy(String name) {
+        return proxies.get(name);
+    }
+
+    @Override
+    public Proxy createProxy(Proxy proxy) {
+        proxies.put(proxy.name, proxy);
+        return proxy;
+    }
+
+    @Override
+    public Proxy updateProxy(Proxy proxy) {
+        proxies.put(proxy.name, proxy);
+        return proxy;
+    }
+
+    @Override
+    public Proxy removeProxy(String name) {
+        return proxies.remove(name);
+    }
+
     private class IcnPacketProcessor implements PacketProcessor {
 
         @Override
@@ -456,407 +858,4 @@ public class IcnService implements
             log.info("sending packet: {}", packet);
         }
     }
-
-    /**
-     * Program required flows when a proxy informs that a resource is being
-     * requested.
-     * @param req
-     */
-    public boolean processResourceRequest(ProxyRequest req) {
-        log.info("Process resource request from proxy {} for host {} and flow {}",
-                req.proxy, req.hostname, req.flow.toString());
-
-        Optional<Proxy> optproxy = proxies.values().stream().filter(p -> p.getMacaddr().equalsIgnoreCase(req.getProxy())).findFirst();
-        if (!optproxy.isPresent()) {
-            log.error("Unable to find a proxy in icn for mac{}", req.getProxy());
-            return false;
-        }
-
-
-        // Get the providers related to this request (if any)
-        Collection<Provider> providers =
-                findProvidersFromAddress(IPv4.toIPv4Address(req.flow.daddr));
-        if (providers.isEmpty()) {
-            log.warn("No provider for proxy request: proxy {} hostname {}",
-                    req.proxy, req.hostname);
-            return false;
-        }
-
-        String resourceName = req.uri;
-        int idx = resourceName.indexOf('?');
-        if (idx > 0)
-            resourceName = resourceName.substring(0, idx);
-
-        Proxy p = optproxy.get();
-        List<Provider> providerList = providers.parallelStream()
-                .filter(prov -> (prov.matchUriPattern(req.uri) != null) &&
-                        (prov.matchHostPattern(req.getHostname()) != null))
-                .limit(1).collect(toList());
-        if (providerList.isEmpty()) {
-            log.info("Not matching provider for url {}", req.uri);
-            return false;
-        }
-        Provider provider = providerList.get(0);
-        log.info("Checking provider: {}", provider.getName());
-        String uri = provider.matchUriPattern(req.uri);
-
-        Optional<Icn> icnfirst = icns.values().parallelStream().filter(x -> {
-            Cache c = null;
-            if (!x.retrieveProviders().contains(provider))
-                return false;
-            return true;
-        }).findFirst();
-        if (!icnfirst.isPresent()) {
-            log.error("No ICN found for provider {}", provider);
-            return false;
-        }
-
-        // We have in icnfirst the first ICN that accomplishes previous checks
-        Icn icn = icnfirst.get();
-
-        Cache c = null;
-        ResourceHTTP resourceHTTP = null;
-        if ( (resourceHTTP = icn.retrieveResource(uri)) != null) {
-            // ResourceHTTP already cached
-            c =  icn.findCacheForExistingResource(this,
-                    uri, DeviceId.deviceId(p.getLocation().getDpid()),
-                    PortNumber.portNumber(p.getLocation().getPort()));
-            log.info("Existing resourceHTTP {} in ICN {} to cache {}",
-                    uri, icn.getName(), c.name);
-        } else {
-            // New resourceHTTP
-            c = icn.findCacheForNewResource(this,
-                    uri, DeviceId.deviceId(p.getLocation().getDpid()),
-                    PortNumber.portNumber(p.getLocation().getPort()));
-        }
-
-        log.info("Program path to cache {} flow {}",
-                c.name, req.flow.toString());
-        if (programProxyPath(req.flow, p, p.getLocation(), c)) {
-            log.info("Created path from proxy to cache");
-        } else {
-            log.error("Unable to create path from proxy to cache");
-            return false;
-        }
-
-        // Resource management
-        if (resourceHTTP != null) {
-            // TODO: Increment resourceHTTP requests
-            req.flow.setDmac(c.macaddr);
-        } else {
-            ResourceHTTP res = new ResourceHTTP();
-            res.setId(UtilIcn.resourceId(icn.getName(), uri));
-            res.setName(uri);
-            res.setRequests(1);
-            res.addCache(c);
-            res.setFullurl("http://" + req.getHostname() + "/" + req.getUri()); // TODO: Make this more dynamic
-            icn.createResource(res, p);
-            log.info("New resourceHTTP {} in ICN {} to cache {}",
-                    res, icn.getName(), c.name);
-            req.flow.setDmac(c.macaddr);
-        }
-
-        return true;
-    }
-
-    /**
-     * Compute route from an input switch to a middlebox's switch, and issue
-     * corresponding FlowMod messages for the given flow.
-     * @param origin Input location
-     * @param mbox Middlebox where the flow is directed.
-     * @return Ouput port that must be used by the input switch.
-     */
-    private boolean programProxyPath(IcnFlow originalreq, IMiddlebox proxy, Location origin, IMiddlebox mbox) {
-        log.info("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
-        log.debug("Original req: {}", originalreq);
-        log.debug("REST Request:  creating paths");
-        log.debug("origin: {}, mbox {}", origin.toString(), mbox.toString());
-        //TODO: What about ipv6??
-        int proxyprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
-        int originaldestprefix = Ip4Address.valueOf(originalreq.daddr).toInt();
-        int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
-        int proxysrcport = Integer.parseInt(originalreq.getSport());
-        int proxydstport = Integer.parseInt(originalreq.getDport());
-        MacAddress originalMac = originalreq.getDmac() != null ? MacAddress.valueOf(originalreq.getDmac()) : null;
-        MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
-
-        IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
-        IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
-        log.debug("prefix origin (proxy) {} destination (provider) {}", proxyprefix, originaldestprefix);
-        if(!createPath(appId, pathService, flowObjectiveService,
-                proxyprefix,
-                originaldestprefix,
-                true, proxysrcport, true, UtilIcn.HTTP_PORT,
-                null, null, null,
-                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
-                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
-                false, null,
-false,null,
-                false, null,
-                true, ipcacheprefix,
-true, cacheMac,
-                true, TpPort.tpPort(3128))) { //TODO: Add port to cache definition in json
-            log.error("programProxyPath(): Unable to create path from proxy to cache");
-        return false;
-        }
-
-        if (!createPath(appId, pathService, flowObjectiveService,
-                cacheprefix,
-                proxyprefix,
-                true, (short) 3128, true, proxysrcport,
-                null, null, null,
-                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
-                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
-                true, ipdestprefix,
-                true, cacheMac,
-                true, TpPort.tpPort(UtilIcn.HTTP_PORT),
-                false, null,
-                false, null,
-                false, null)) {
-            log.error("programProxyPath(): Unable to create path from cache to proxy");
-            return false;
-        }
-
-        log.debug("Proxy paths created successfully");
-
-        return true;
-	}
-
-    @Override
-    public boolean createPrefetchingPath(IMiddlebox proxy, Location origin, IMiddlebox mbox, Ip4Address icnAddress, short icnPort) {
-        int proxyprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
-        int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
-        MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
-
-        IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
-
-
-        if(!createPath(appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
-                true, icnPort, null, null, null,
-                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
-                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
-                false, null, false, null, false, null,
-                true, ipcacheprefix, true, cacheMac, true, TpPort.tpPort(3128))) {
-            log.error("createPrefetchingPath: Unable to create path between proxy and cache");
-            return false;
-        }
-
-        if(!createPath(appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
-                true, icnPort, null, null, null,
-                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
-                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
-                true, icnAddress, false, null, true, TpPort.tpPort(icnPort),
-                false, null, false, null, false, null)) {
-            log.error("createPrefetchingPath: Unable to create path between cache and proxy");
-            return false;
-        }
-
-        return false;
-    }
-
-    private IcnFlow reverseFlow(IcnFlow flow) {
-		IcnFlow reverseFlow = new IcnFlow();
-    	if (flow.dltype != null)
-    		reverseFlow.dltype = flow.dltype;
-    	if (flow.proto != null)
-    		reverseFlow.proto = flow.proto;
-    	if (flow.saddr != null)
-    		reverseFlow.daddr = flow.saddr;
-    	if (flow.daddr != null)
-    		reverseFlow.saddr = flow.daddr;
-    	if (flow.sport != null)
-    		reverseFlow.dport = flow.sport;
-    	if (flow.dport != null)
-    		reverseFlow.sport = flow.dport;
-    	
-    	return reverseFlow;
-	}
-	
-	protected Collection<Provider> findProvidersFromAddress(int ip) {
-		Collection<Provider> providers = new HashSet<Provider>();
-		for (Icn c : icns.values()) {
-			for (Provider p: c.retrieveProviders()) {
-				if (p.containsIpAddress(ip))
-					providers.add(p);
-			}
-		}
-		return providers;
-	}
-	
-	protected Proxy findProxy(String macaddr) {
-		for (Proxy p: proxies.values()) {
-			if (macaddr.equalsIgnoreCase(p.macaddr))
-				return p;
-		}
-		return null;
-	}
-	
-	protected IMiddlebox findClosestMiddlebox(Collection<? extends IMiddlebox> middleboxes,
-                                              DeviceId sw, PortNumber inPort) {
-		IMiddlebox mbox = null;
-		int minLen = Integer.MAX_VALUE;
-		
-		for (IMiddlebox m: middleboxes) {
-            String mboxDeviceId = null;
-            if (m.getLocation() == null) {
-                // There was no info in the config json about location. Try to find the host
-                Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(m.getMacaddr()));
-                if (hostsByMac.isEmpty())
-                    continue;
-                if (hostsByMac.size() > 1)
-                    log.warn("More than one host per mac, multiple links for same host? {}", m.getMacaddr());
-                for (Host host : hostsByMac) {
-                    mboxDeviceId = host.location().deviceId().toString();
-                }
-            } else {
-                // Get info about middlebox location from config
-                mboxDeviceId = m.getLocation().dpid;
-            }
-
-            Topology topology = topologyService.currentTopology();
-            log.debug("Paths in topology: {}", topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId)));
-
-            Set<Path> paths = topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId));
-            if (sw.toString().equals(mboxDeviceId))
-            {
-                // Middlebox and host on the same device. No path needed. No need to look for best path.
-                mbox = m;
-                continue;
-            } else {
-                for (Path path : paths) {
-                    if (path.links().size() < minLen) { // TODO: Here we could take into account other metrics rather than number of links
-                        minLen = path.links().size();
-                        mbox = m;
-                    }
-                }
-            }
-        }
-		return mbox;
-	}
-	
-	protected Cache findCache(String macaddr) {
-		for (Icn icn : icns.values()) {
-			for (Cache cache: icn.retrieveCaches()) {
-				if (macaddr.equalsIgnoreCase(cache.macaddr))
-					return cache;
-			}
-		}
-		return null;
-	}
-	
-	@Override
-	public Collection<Icn> retrieveIcns() {
-		return icns.values();
-	}
-	
-	@Override
-	public Icn retrieveIcn(String name) {
-		return icns.get(name);
-	}
-		
-	@Override
-	public Icn createIcn(Icn icn) {
-        icn.setIcnService(this);
-		icns.put(icn.getName(), icn);
-		return icn;
-	}
-	
-	@Override
-	public Icn updateIcn(Icn icn) {
-		icns.put(icn.getName(), icn);
-		return icn;
-	}
-	
-	@Override
-	public Icn removeIcn(String name) {
-		return icns.remove(name);
-	}
-	
-	@Override
-	public Collection<Provider> retrieveProviders(Icn icn) {
-		return icn.retrieveProviders();
-	}
-	
-	@Override
-	public Provider retrieveProvider(Icn icn, String name) {
-		return icn.retrieveProvider(name);
-	}
-		
-	@Override
-	public Provider createProvider(Icn icn, Provider provider) {
-		return icn.createProvider(provider);
-	}
-	
-	@Override
-	public Provider updateProvider(Icn icn, Provider provider) {
-		return icn.updateProvider(provider);
-	}
-	
-	@Override
-	public Provider removeProvider(Icn icn, String name) {
-		return icn.removeProvider(name);
-	}
-	
-	@Override
-	public Collection<Cache> retrieveCaches(Icn icn) {
-		return icn.retrieveCaches();
-	}
-	
-	@Override
-	public Cache retrieveCache(Icn icn, String name) {
-		return icn.retrieveCache(name);
-	}
-	
-	@Override
-	public Cache createCache(Icn icn, Cache cache) {
-		return icn.createCache(cache);
-	}
-	
-	@Override
-	public Cache updateCache(Icn icn, Cache cache) {
-		return icn.updateCache(cache);
-	}
-	
-	@Override
-	public Cache removeCache(Icn icn, String name) {
-		return icn.removeCache(name);
-	}
-	
-	@Override
-	public Collection<ResourceHTTP> retrieveResources(Icn icn) {
-		return icn.retrieveResources();
-	}
-	
-	@Override
-	public ResourceHTTP retrieveResource(Icn icn, String id) {
-		return icn.retrieveResource(id);
-	}
-
-	@Override
-	public Collection<Proxy> retrieveProxies() {
-		return proxies.values();
-	}
-
-	@Override
-	public Proxy retrieveProxy(String name) {
-		return proxies.get(name);
-	}
-
-	@Override
-	public Proxy createProxy(Proxy proxy) {
-		proxies.put(proxy.name, proxy);
-		return proxy;
-	}
-
-	@Override
-	public Proxy updateProxy(Proxy proxy) {
-		proxies.put(proxy.name, proxy);
-		return proxy;
-	}
-
-	@Override
-	public Proxy removeProxy(String name) {
-		return proxies.remove(name);
-	}
-	
 }
