@@ -109,7 +109,6 @@ public class IcnService implements
     /** We need to register with the provider to receive OF messages */
     protected HashMap<String, Icn> icns;
     protected HashMap<String, Proxy> proxies;
-    protected HashMap<IntentId, Intent> installedIntents;
 
     private IcnPacketProcessor icnPacketProcessor = new IcnPacketProcessor();
     private InternalFlowListener flowListener = new InternalFlowListener();
@@ -122,7 +121,6 @@ public class IcnService implements
         // Initialize our data structures
         icns = new HashMap<String, Icn>();
         proxies = new HashMap<String, Proxy>();
-        installedIntents = new HashMap<>();
         // Install Processor
         packetService.addProcessor(icnPacketProcessor, PacketProcessor.director(PROCESSOR_PRIORITY));
 
@@ -134,11 +132,6 @@ public class IcnService implements
 
     @Deactivate
     public void deactivate() {
-        installedIntents.forEach( (k,v) -> {
-            log.info("Withdrawing icn intent: {}", v.toString());
-            intentService.withdraw(v);
-        });
-        installedIntents.clear();
         withdrawIntercepts();
         packetService.removeProcessor(icnPacketProcessor);
         flowRuleService.removeListener(flowListener);
