@@ -22,10 +22,8 @@ package es.um.app.icn;
 
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.stream.Stream;
 
 import org.apache.felix.scr.annotations.*;
-import org.omg.CORBA.INTERNAL;
 import org.onlab.packet.*;
 import org.onosproject.core.ApplicationId;
 import org.onosproject.core.CoreService;
@@ -42,8 +40,6 @@ import org.onosproject.net.flowobjective.DefaultForwardingObjective;
 import org.onosproject.net.flowobjective.FlowObjectiveService;
 import org.onosproject.net.flowobjective.ForwardingObjective;
 import org.onosproject.net.host.HostService;
-import org.onosproject.net.intent.Intent;
-import org.onosproject.net.intent.IntentId;
 import org.onosproject.net.intent.IntentService;
 import org.onosproject.net.packet.*;
 import org.onosproject.net.topology.PathService;
@@ -53,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
 
 
 @Component(immediate = true)
@@ -109,6 +106,7 @@ public class IcnService implements
     /** We need to register with the provider to receive OF messages */
     protected HashMap<String, Icn> icns;
     protected HashMap<String, Proxy> proxies;
+    protected HashMap<String, InternalIcnFlow> flows;
 
     private IcnPacketProcessor icnPacketProcessor = new IcnPacketProcessor();
     private InternalFlowListener flowListener = new InternalFlowListener();
@@ -121,6 +119,7 @@ public class IcnService implements
         // Initialize our data structures
         icns = new HashMap<String, Icn>();
         proxies = new HashMap<String, Proxy>();
+        flows  = new HashMap<>();
         // Install Processor
         packetService.addProcessor(icnPacketProcessor, PacketProcessor.director(PROCESSOR_PRIORITY));
 
@@ -179,6 +178,8 @@ public class IcnService implements
                                         boolean rewriteDestinationIP, IpAddress rwdestinationAddr,
                                         boolean rewriteDestinationMAC, MacAddress rwdestinationl2Addr,
                                         boolean rewriteDestinationPort, TpPort rwdestport) {
+        String idx = matchIpsrc+ "|" + matchIpDst+ "|" + matchPortSrc+ "|" + srcport+ "|" + matchPortDst+ "|" + dstport+ "|" + source+ "|" + destination+ "|" + rewriteSourceIP+ "|" + rwsourceAddr+ "|" + rwsourcel2Addr+ "|" + rewriteDestinationIP+ "|" + rwdestinationAddr+ "|" + rwdestinationl2Addr;
+
         log.debug("Creating path matchIpSrc {} matchIpDst {} matchPortSrc {}:{} matchPorDst {}:{} source {} destination {} ",
                 matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, source, destination);
         log.debug("rewriteSource {} {} {}", rewriteSourceIP, rwsourceAddr, rwsourcel2Addr);
@@ -210,6 +211,10 @@ public class IcnService implements
             if (iterator.hasNext()) {
                 Path path = iterator.next(); // Get one path
                 for (Link link : path.links()) {
+                    if (flows.containsKey(link.src().deviceId() + idx)) {
+                        log.debug("Flow {} was already requested, ignoring.", link.src().deviceId() + idx);
+                        continue;
+                    }
                     destinationport = link.src().port();
                     log.debug("Treating link {} for device {} inport {} outport {}",
                             link, link.src().deviceId(), sourceport, destinationport);
@@ -233,6 +238,8 @@ public class IcnService implements
                             .withFlag(ForwardingObjective.Flag.SPECIFIC);
                     flowObjectiveService.forward(link.src().deviceId(), fobuilder.add());
                     log.debug("Preparing path: {} {} {}", link.src().deviceId(), selector, treatment);
+                    InternalIcnFlow icnflow = new InternalIcnFlow(selector, treatment);
+                    flows.put(link.src().deviceId() + idx, icnflow);
                     sourceport = link.dst().port();
                 }
             }
@@ -241,6 +248,11 @@ public class IcnService implements
                 log.debug("Same device");
                 sourceport = source.port();
             }
+            if (flows.containsKey(destination.deviceId() + idx)) {
+                log.debug("Flow {} was already requested, ignoring.", destination.deviceId() + idx);
+                return true;
+            }
+
             destinationport = destination.port();
             TrafficSelector selector = trafficSelectorBuilder
                     .matchInPort(sourceport)
@@ -290,7 +302,23 @@ public class IcnService implements
                     .withFlag(ForwardingObjective.Flag.SPECIFIC);
             flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
             log.debug("Preparing final jump: {} {}", selector, treatment);
+            InternalIcnFlow icnflow = new InternalIcnFlow(selector, treatment);
+            flows.put(destination.deviceId() + idx, icnflow);
         }
+        return true;
+    }
+
+    public boolean flowExpired(InternalIcnFlow flow) {
+        Map<String, InternalIcnFlow> collectedEntries = flows.entrySet().parallelStream().filter(e -> e.getValue().equals(flow)).collect(toMap(HashMap.Entry::getKey, HashMap.Entry::getValue));
+
+        if (collectedEntries.size() == 0) {
+            log.warn("Internal flow expired and not found {}", flow);
+            return false;
+        }
+        if (collectedEntries.size() != 1) {
+            log.warn("More than one internal flow coincide {}", collectedEntries.keySet());
+        }
+        collectedEntries.keySet().forEach(k -> flows.remove(k));
 
         return true;
     }
@@ -874,7 +902,58 @@ true, cacheMac,
             if (flowRuleEvent.type().equals(FlowRuleEvent.Type.RULE_REMOVED) &&
                     flowRule.appId() == appId.id()) {
                 // One of our rules has been removed
+                InternalIcnFlow icnFlow = new InternalIcnFlow(flowRule.selector(), flowRule.treatment());
+                log.debug("Expiring flow: {}", icnFlow);
+                flowExpired(icnFlow);
             }
+        }
+    }
+
+    class InternalIcnFlow {
+        TrafficSelector selector;
+        TrafficTreatment treatment;
+
+        public InternalIcnFlow(TrafficSelector selector, TrafficTreatment treatment) {
+            this.selector = selector;
+            this.treatment = treatment;
+        }
+
+        public TrafficSelector getSelector() {
+            return selector;
+        }
+
+        public TrafficTreatment getTreatment() {
+            return treatment;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof InternalIcnFlow)) return false;
+
+            InternalIcnFlow that = (InternalIcnFlow) o;
+
+            if (!that.getSelector().toString().equals(selector.toString()))
+                return false;
+            if (!that.getTreatment().toString().equals(treatment.toString()))
+                return false;
+            return true;
+
+        }
+
+        @Override
+        public int hashCode() {
+            int result = selector.hashCode();
+            result = 31 * result + treatment.hashCode();
+            return result;
+        }
+
+        @Override
+        public String toString() {
+            return "InternalIcnFlow{" +
+                    "selector=" + selector +
+                    ", treatment=" + treatment +
+                    '}';
         }
     }
 
