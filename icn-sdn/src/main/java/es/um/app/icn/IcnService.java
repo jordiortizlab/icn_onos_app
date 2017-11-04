@@ -22,6 +22,7 @@ package es.um.app.icn;
 
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.stream.Stream;
 
 import org.apache.felix.scr.annotations.*;
 import org.onlab.packet.*;
@@ -45,6 +46,8 @@ import org.onosproject.net.topology.Topology;
 import org.onosproject.net.topology.TopologyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static java.util.stream.Collectors.toList;
 
 
 @Component(immediate = true)
@@ -485,78 +488,75 @@ public class IcnService implements
             resourceName = resourceName.substring(0, idx);
 
         Proxy p = optproxy.get();
-        for (Provider provider : providers) {
-            log.info("Checking provider: {}", provider.getName());
-            String uri = provider.matchUriPattern(req.uri);
-
-            Optional<Icn> icnfirst = icns.values().stream().filter(x -> {
-                Cache c = null;
-                if (!x.retrieveProviders().contains(provider))
-                    return false;
-                if (provider.matchUriPattern(req.uri) == null)
-                    return false;
-                if (provider.matchHostPattern(req.getHostname()) == null)
-                    return false;
-                if ((c = x.findCacheForNewResource(this,
-                        uri, DeviceId.deviceId(p.getLocation().getDpid()),
-                        PortNumber.portNumber(p.getLocation().getPort()))) == null) {
-                    log.warn("No cache in ICN {} for new resourceHTTP {}",
-                            x.getName(), uri);
-                    return false;
-                }
-                if (c.getMacaddr() == null) {
-                    log.warn("No MAC address for cache {}",
-                            c.name);
-                    return false;
-                }
-                return true;
-            }).findFirst();
-            if (!icnfirst.isPresent()) {
-                log.error("No ICN found ");
-                return false;
-            }
-
-            // We have in icnfirst the first ICN that accomplishes previous checks
-            Icn icn = icnfirst.get();
-
-            Cache c = null;
-            ResourceHTTP resourceHTTP = null;
-            if ( (resourceHTTP = icn.retrieveResource(uri)) != null) {
-                // ResourceHTTP already cached
-                c =  icn.findCacheForExistingResource(this,
-                        uri, DeviceId.deviceId(p.getLocation().getDpid()),
-                        PortNumber.portNumber(p.getLocation().getPort()));
-                log.info("Existing resourceHTTP {} in ICN {} to cache {}",
-                        uri, icn.getName(), c.name);
-                // TODO: Increment resourceHTTP requests
-                req.flow.setDmac(c.macaddr);
-            } else {
-                // New resourceHTTP
-                c =  icn.findCacheForNewResource(this,
-                        uri, DeviceId.deviceId(p.getLocation().getDpid()),
-                        PortNumber.portNumber(p.getLocation().getPort()));
-
-                ResourceHTTP res = new ResourceHTTP();
-                res.setId(UtilIcn.resourceId(icn.getName(), uri));
-                res.setName(uri);
-                res.setRequests(1);
-                res.addCache(c);
-                res.setFullurl("http://" + req.getHostname() + "/" + req.getUri()); // TODO: Make this more dynamic
-                icn.createResource(res, p);
-                log.info("New resourceHTTP {} in ICN {} to cache {}",
-                        res, icn.getName(), c.name);
-                req.flow.setDmac(c.macaddr);
-            }
-            log.info("Program path to cache {} flow {}",
-                    c.name, req.flow.toString());
-            if (programProxyPath(req.flow, p, p.getLocation(), c)) {
-                log.info("Created path from proxy to cache");
-                return true;
-            } else {
-                log.error("Unable to create path from proxy to cache");
-            }
+        List<Provider> providerList = providers.parallelStream()
+                .filter(prov -> (prov.matchUriPattern(req.uri) != null) &&
+                        (prov.matchHostPattern(req.getHostname()) != null))
+                .limit(1).collect(toList());
+        if (providerList.isEmpty()) {
+            log.info("Not matching provider for url {}", req.uri);
+            return false;
         }
-        return false;
+        Provider provider = providerList.get(0);
+        log.info("Checking provider: {}", provider.getName());
+        String uri = provider.matchUriPattern(req.uri);
+
+        Optional<Icn> icnfirst = icns.values().parallelStream().filter(x -> {
+            Cache c = null;
+            if (!x.retrieveProviders().contains(provider))
+                return false;
+            return true;
+        }).findFirst();
+        if (!icnfirst.isPresent()) {
+            log.error("No ICN found for provider {}", provider);
+            return false;
+        }
+
+        // We have in icnfirst the first ICN that accomplishes previous checks
+        Icn icn = icnfirst.get();
+
+        Cache c = null;
+        ResourceHTTP resourceHTTP = null;
+        if ( (resourceHTTP = icn.retrieveResource(uri)) != null) {
+            // ResourceHTTP already cached
+            c =  icn.findCacheForExistingResource(this,
+                    uri, DeviceId.deviceId(p.getLocation().getDpid()),
+                    PortNumber.portNumber(p.getLocation().getPort()));
+            log.info("Existing resourceHTTP {} in ICN {} to cache {}",
+                    uri, icn.getName(), c.name);
+        } else {
+            // New resourceHTTP
+            c = icn.findCacheForNewResource(this,
+                    uri, DeviceId.deviceId(p.getLocation().getDpid()),
+                    PortNumber.portNumber(p.getLocation().getPort()));
+        }
+
+        log.info("Program path to cache {} flow {}",
+                c.name, req.flow.toString());
+        if (programProxyPath(req.flow, p, p.getLocation(), c)) {
+            log.info("Created path from proxy to cache");
+        } else {
+            log.error("Unable to create path from proxy to cache");
+            return false;
+        }
+
+        // Resource management
+        if (resourceHTTP != null) {
+            // TODO: Increment resourceHTTP requests
+            req.flow.setDmac(c.macaddr);
+        } else {
+            ResourceHTTP res = new ResourceHTTP();
+            res.setId(UtilIcn.resourceId(icn.getName(), uri));
+            res.setName(uri);
+            res.setRequests(1);
+            res.addCache(c);
+            res.setFullurl("http://" + req.getHostname() + "/" + req.getUri()); // TODO: Make this more dynamic
+            icn.createResource(res, p);
+            log.info("New resourceHTTP {} in ICN {} to cache {}",
+                    res, icn.getName(), c.name);
+            req.flow.setDmac(c.macaddr);
+        }
+
+        return true;
     }
 
     /**
