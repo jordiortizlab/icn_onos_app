@@ -21,6 +21,8 @@ public class ProxyCodec extends JsonCodec<Proxy> {
     private static final String LOCATION_FIELD = "location";
     private static final String MACADDR_FIELD = "macaddr";
     private static final String IPADDR_FIELD = "ipaddr";
+    private static final String PROXYPORT_FIELD = "port";
+    private static final String PREFETCHPORT_FIELD = "prefetchport";
     private static final String TYPE_FIELD = "type";
 
     @Override
@@ -32,6 +34,7 @@ public class ProxyCodec extends JsonCodec<Proxy> {
                 .put(DESCRIPTION_FIELD, proxy.getDescription())
                 .put(IPADDR_FIELD, proxy.getIpaddr())
                 .put(MACADDR_FIELD, proxy.getMacaddr())
+                .put(PROXYPORT_FIELD, proxy.getPort())
                 .put(TYPE_FIELD, proxy.getType());
         if (proxy.getLocation() != null) {
             ObjectNode locationobject = new LocationCodec().encode(proxy.getLocation(), context);
@@ -58,6 +61,10 @@ public class ProxyCodec extends JsonCodec<Proxy> {
         proxy.setDescription(json.get(DESCRIPTION_FIELD).asText());
         if(json.get(IPADDR_FIELD) != null)
             proxy.setIpaddr(json.get(IPADDR_FIELD).asText());
+        if(json.get(PROXYPORT_FIELD) != null)
+            proxy.setPort(json.get(PROXYPORT_FIELD).asInt());
+        if(json.get(PREFETCHPORT_FIELD) != null)
+            proxy.setPrefetch_port(json.get(PREFETCHPORT_FIELD).asInt());
         proxy.setMacaddr(json.get(MACADDR_FIELD).asText());
         proxy.setType(json.get(TYPE_FIELD).asText());
         JsonNode locationjson = json.get(LOCATION_FIELD);

@@ -27,6 +27,8 @@ public class Proxy implements IMiddlebox {
 	protected Location location;
 	protected String macaddr;
 	protected String ipaddr;
+	protected int port;
+	protected int prefetch_port;
 	/** Proxy type, e.g. "http", "https" or "http2ccn" */
 	protected String type;
 	
@@ -82,6 +84,22 @@ public class Proxy implements IMiddlebox {
 		this.type = type;
 	}
 
+	public int getPort() {
+		return port;
+	}
+
+	public void setPort(int port) {
+		this.port = port;
+	}
+
+	public int getPrefetch_port() {
+		return prefetch_port;
+	}
+
+	public void setPrefetch_port(int prefetch_port) {
+		this.prefetch_port = prefetch_port;
+	}
+
 	@Override
 	public String toString() {
 		return "Proxy{" +
@@ -90,6 +108,8 @@ public class Proxy implements IMiddlebox {
 				", location=" + location +
 				", macaddr='" + macaddr + '\'' +
 				", ipaddr='" + ipaddr + '\'' +
+				", port=" + port + '\n' +
+				", prefetch_port=" + prefetch_port + '\n' +
 				", type='" + type + '\'' +
 				'}';
 	}

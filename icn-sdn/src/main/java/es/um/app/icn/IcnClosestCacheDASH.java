@@ -243,7 +243,8 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
         public void postHTTP(String uri) {
             try {
-                URL url = new URL("http://" + proxy.getIpaddr()+"/prefetch");
+                //TODO: Port of the prefetcher should be configurable
+                URL url = new URL("http://" + proxy.getIpaddr()+":" + proxy.getPrefetch_port() + "/prefetch");
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.connect();
 
