@@ -461,7 +461,7 @@ false,null,
                 false, null,
                 true, ipcacheprefix,
 true, cacheMac,
-                true, TpPort.tpPort(3128))) { //TODO: Add port to cache definition in json
+                true, TpPort.tpPort(mbox.getPort()))) {
             log.error("programProxyPath(): Unable to create path from proxy to cache");
         return false;
         }
@@ -469,7 +469,7 @@ true, cacheMac,
         if (!createPath(appId, pathService, flowObjectiveService,
                 cacheprefix,
                 proxyprefix,
-                true, (short) 3128, true, proxysrcport,
+                true, mbox.getPort(), true, proxysrcport,
                 null, null, null,
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),

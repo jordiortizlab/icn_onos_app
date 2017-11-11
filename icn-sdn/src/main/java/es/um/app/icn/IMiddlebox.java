@@ -41,5 +41,9 @@ public interface IMiddlebox {
 	public String getIpaddr();
 
 	public void setIpaddr(String ipaddr);
+
+	public void setPort(int port);
+
+	public int getPort();
 	
 }

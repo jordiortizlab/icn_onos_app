@@ -27,7 +27,7 @@ public class Cache implements IMiddlebox {
     protected Location location;
     protected String macaddr;
     protected String ipaddr;
-    
+    protected int port;
 
     public Cache() {
 
@@ -73,6 +73,14 @@ public class Cache implements IMiddlebox {
         this.ipaddr = ipaddr;
     }
 
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
     @Override
     public String toString() {
         return "Cache{" +
@@ -81,6 +89,7 @@ public class Cache implements IMiddlebox {
                 ", location=" + location +
                 ", macaddr='" + macaddr + '\'' +
                 ", ipaddr='" + ipaddr + '\'' +
+                ", port='" + port + '\'' +
                 '}';
     }
 }

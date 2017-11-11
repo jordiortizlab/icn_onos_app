@@ -20,6 +20,7 @@ public class CacheCodec extends JsonCodec<Cache>{
     private static final String NAME_FIELD = "name";
     private static final String DESCRIPTION_FIELD = "description";
     private static final String IPADDR_FIELD = "ipaddr";
+    private static final String PORT_FIELD = "port";
     private static final String MACADDR_FIELD = "macaddr";
     private static final String LOCATION_FIELD = "location";
 
@@ -30,7 +31,8 @@ public class CacheCodec extends JsonCodec<Cache>{
         ObjectNode result = context.mapper().createObjectNode()
                 .put(NAME_FIELD, cache.getName())
                 .put(DESCRIPTION_FIELD, cache.getDescription())
-                .put(IPADDR_FIELD,cache.getIpaddr())
+                .put(IPADDR_FIELD, cache.getIpaddr())
+                .put(PORT_FIELD, cache.getPort())
                 .put(MACADDR_FIELD,cache.getMacaddr());
         if (cache.getLocation() != null) {
             ObjectNode locationobject = new LocationCodec().encode(cache.getLocation(), context);
@@ -57,6 +59,10 @@ public class CacheCodec extends JsonCodec<Cache>{
         cache.setDescription(json.get(DESCRIPTION_FIELD).asText());
         if (json.get(IPADDR_FIELD) != null)
             cache.setIpaddr(json.get(IPADDR_FIELD).asText());
+        if (json.get(PORT_FIELD) != null)
+            cache.setPort(json.get(PORT_FIELD).asInt());
+        else
+            cache.setPort(3128);
         cache.setMacaddr(json.get(MACADDR_FIELD).asText());
         JsonNode locationjson = json.get(LOCATION_FIELD);
         if (locationjson != null) {
