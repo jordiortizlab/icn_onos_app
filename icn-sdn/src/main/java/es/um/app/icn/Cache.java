@@ -22,64 +22,65 @@ package es.um.app.icn;
 
 public class Cache implements IMiddlebox {
 
-	protected String name;
-	protected String description;
-	protected Location location;
-	protected String macaddr;
-	protected String ipaddr;
-	
-	public Cache() {
-		
-	}
+    protected String name;
+    protected String description;
+    protected Location location;
+    protected String macaddr;
+    protected String ipaddr;
+    
 
-	public String getName() {
-		return name;
-	}
+    public Cache() {
 
-	public void setName(String name) {
-		this.name = name;
-	}
+    }
 
-	public String getDescription() {
-		return description;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
+    public void setName(String name) {
+        this.name = name;
+    }
 
-	public Location getLocation() {
-		return location;
-	}
+    public String getDescription() {
+        return description;
+    }
 
-	public void setLocation(Location location) {
-		this.location = location;
-	}
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-	public String getMacaddr() {
-		return macaddr;
-	}
+    public Location getLocation() {
+        return location;
+    }
 
-	public void setMacaddr(String macaddr) {
-		this.macaddr = macaddr;
-	}
+    public void setLocation(Location location) {
+        this.location = location;
+    }
 
-	public String getIpaddr() {
-		return ipaddr;
-	}
+    public String getMacaddr() {
+        return macaddr;
+    }
 
-	public void setIpaddr(String ipaddr) {
-		this.ipaddr = ipaddr;
-	}
+    public void setMacaddr(String macaddr) {
+        this.macaddr = macaddr;
+    }
 
-	@Override
-	public String toString() {
-		return "Cache{" +
-				"name='" + name + '\'' +
-				", description='" + description + '\'' +
-				", location=" + location +
-				", macaddr='" + macaddr + '\'' +
-				", ipaddr='" + ipaddr + '\'' +
-				'}';
-	}
+    public String getIpaddr() {
+        return ipaddr;
+    }
+
+    public void setIpaddr(String ipaddr) {
+        this.ipaddr = ipaddr;
+    }
+
+    @Override
+    public String toString() {
+        return "Cache{" +
+                "name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", location=" + location +
+                ", macaddr='" + macaddr + '\'' +
+                ", ipaddr='" + ipaddr + '\'' +
+                '}';
+    }
 }
