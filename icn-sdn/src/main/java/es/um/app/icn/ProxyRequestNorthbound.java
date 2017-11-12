@@ -48,12 +48,10 @@ public class ProxyRequestNorthbound extends AbstractWebResource {
                 return Response.status(Response.Status.NOT_ACCEPTABLE).entity("Unable to process request").build();
 			}
 		} catch (JsonProcessingException e) {
-			e.printStackTrace();
-            log.error("Unable to dejsonize the ProxyRequest");
+            log.error("Unable to dejsonize the ProxyRequest {}",e);
             return Response.status(Response.Status.NOT_FOUND).entity("Unable to dejsonize the ProxyRequest").build();
 		} catch (IOException e) {
-			e.printStackTrace();
-            log.error("Unable to dejsonize the ProxyRequest");
+            log.error("Unable to dejsonize the ProxyRequest {}",e);
             return Response.status(Response.Status.NOT_FOUND).entity("Unable to dejsonize the ProxyRequest").build();
 		}
         return Response.status(Response.Status.OK).build();

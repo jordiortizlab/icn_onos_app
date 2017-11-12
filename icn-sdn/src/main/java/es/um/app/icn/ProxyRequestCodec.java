@@ -49,8 +49,7 @@ public class ProxyRequestCodec extends JsonCodec<ProxyRequest> {
             ObjectNode icnflowobject = (ObjectNode)context.mapper().readTree(icnflowjson.toString());
             proxyRequest.setFlow(new IcnFlowCodec().decode(icnflowobject, context));
         } catch (IOException e) {
-            log.error("Unable to dejsonize ProxyRequest");
-            e.printStackTrace();
+            log.error("Unable to dejsonize ProxyRequest {}", e);
             return null;
         }
         return proxyRequest;
