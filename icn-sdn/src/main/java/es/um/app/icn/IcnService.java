@@ -415,7 +415,10 @@ public class IcnService implements
             res.setName(uri);
             res.setRequests(1);
             res.addCache(c);
-            res.setFullurl("http://" + req.getHostname() + "/" + req.getUri()); // TODO: Make this more dynamic
+            if (!req.getUri().contains("http://"))
+                res.setFullurl("http://" + req.getHostname() + "/" + req.getUri()); // TODO: Make this more dynamic
+            else
+                res.setFullurl(req.getUri());
             icn.createResource(res, p);
             log.info("New resourceHTTP {} in ICN {} to cache {}",
                     res, icn.getName(), c.name);
