@@ -106,11 +106,12 @@ public class IcnService implements
     /** We need to register with the provider to receive OF messages */
     protected HashMap<String, Icn> icns;
     protected HashMap<String, Proxy> proxies;
-    protected HashMap<String, InternalIcnFlow> flows;
+    protected HashMap<PathIndex, InternalIcnFlow> flows;
 
     private IcnPacketProcessor icnPacketProcessor = new IcnPacketProcessor();
     private InternalFlowListener flowListener = new InternalFlowListener();
 
+    private long proxyReqServiceId = 1L;
     @Activate
     public void activate() {
 
@@ -168,7 +169,7 @@ public class IcnService implements
         // TODO: Missing IPv6
     }
 
-    protected boolean createPath(ApplicationId appId, PathService pathService, FlowObjectiveService flowObjectiveService,
+    protected boolean createPath(String service, ApplicationId appId, PathService pathService, FlowObjectiveService flowObjectiveService,
                                         int matchIpsrc, int matchIpDst, boolean matchPortSrc, int srcport, boolean matchPortDst, int dstport,
                                         Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
                                         ConnectPoint source, ConnectPoint destination,
@@ -178,7 +179,6 @@ public class IcnService implements
                                         boolean rewriteDestinationIP, IpAddress rwdestinationAddr,
                                         boolean rewriteDestinationMAC, MacAddress rwdestinationl2Addr,
                                         boolean rewriteDestinationPort, TpPort rwdestport) {
-        String idx = matchIpsrc+ "|" + matchIpDst+ "|" + matchPortSrc+ "|" + srcport+ "|" + matchPortDst+ "|" + dstport+ "|" + source+ "|" + destination+ "|" + rewriteSourceIP+ "|" + rwsourceAddr+ "|" + rwsourcel2Addr+ "|" + rewriteDestinationIP+ "|" + rwdestinationAddr+ "|" + rwdestinationl2Addr;
         if (source.equals(destination)) {
             log.error("Source = Destination {}", source);
             return false;
@@ -214,8 +214,12 @@ public class IcnService implements
             if (iterator.hasNext()) {
                 Path path = iterator.next(); // Get one path
                 for (Link link : path.links()) {
-                    if (flows.containsKey(link.src().deviceId() + idx)) {
-                        log.debug("Flow {} was already requested, ignoring.", link.src().deviceId() + idx);
+                    PathIndex idx = new PathIndex(service, link.src().deviceId(), appId, matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, ethIn, ipIn, tcpIn,
+                            source, destination,
+                            rewriteSourceIP, rwsourceAddr, rewriteSourceMAC,rwsourcel2Addr, rewriteSourcePort, rwsourceport,
+                            rewriteDestinationIP, rwdestinationAddr, rewriteDestinationMAC, rwdestinationl2Addr, rewriteDestinationPort, rwdestport);
+                    if (flows.containsKey(idx)) {
+                        log.debug("Flow {} was already requested, ignoring.", idx);
                         continue;
                     }
                     destinationport = link.src().port();
@@ -242,7 +246,7 @@ public class IcnService implements
                     flowObjectiveService.forward(link.src().deviceId(), fobuilder.add());
                     log.debug("Preparing path: {} {} {}", link.src().deviceId(), selector, treatment);
                     InternalIcnFlow icnflow = new InternalIcnFlow(selector, treatment);
-                    flows.put(link.src().deviceId() + idx, icnflow);
+                    flows.put(idx, icnflow);
                     sourceport = link.dst().port();
                 }
             }
@@ -251,8 +255,12 @@ public class IcnService implements
                 log.debug("Same device");
                 sourceport = source.port();
             }
-            if (flows.containsKey(destination.deviceId() + idx)) {
-                log.debug("Flow {} was already requested, ignoring.", destination.deviceId() + idx);
+            PathIndex idx = new PathIndex(service, destination.deviceId(), appId, matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, ethIn, ipIn, tcpIn,
+                    source, destination,
+                    rewriteSourceIP, rwsourceAddr, rewriteSourceMAC,rwsourcel2Addr, rewriteSourcePort, rwsourceport,
+                    rewriteDestinationIP, rwdestinationAddr, rewriteDestinationMAC, rwdestinationl2Addr, rewriteDestinationPort, rwdestport);
+            if (flows.containsKey(idx)) {
+                log.debug("Flow {} was already requested, ignoring.", idx);
                 return true;
             }
 
@@ -306,13 +314,13 @@ public class IcnService implements
             flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
             log.debug("Preparing final jump: {} {}", selector, treatment);
             InternalIcnFlow icnflow = new InternalIcnFlow(selector, treatment);
-            flows.put(destination.deviceId() + idx, icnflow);
+            flows.put(idx, icnflow);
         }
         return true;
     }
 
-    public boolean flowExpired(InternalIcnFlow flow) {
-        Map<String, InternalIcnFlow> collectedEntries = flows.entrySet().parallelStream().filter(e -> e.getValue().equals(flow)).collect(toMap(HashMap.Entry::getKey, HashMap.Entry::getValue));
+    public boolean flowExpired(DeviceId device, InternalIcnFlow flow) {
+        Map<PathIndex, InternalIcnFlow> collectedEntries = flows.entrySet().parallelStream().filter(e -> e.getKey().getNode().equals(device) && e.getValue().equals(flow)).collect(toMap(HashMap.Entry::getKey, HashMap.Entry::getValue));
 
         if (collectedEntries.size() == 0) {
             log.warn("Internal flow expired and not found {}", flow);
@@ -401,7 +409,7 @@ public class IcnService implements
 
         log.info("Program path to cache {} flow {}",
                 c.name, req.flow.toString());
-        if (programProxyPath(req.flow, p, p.getLocation(), c)) {
+        if (programProxyPath("proxyReq" + proxyReqServiceId++, req.flow, p, p.getLocation(), c)) {
             log.info("Created path from proxy to cache");
         } else {
             log.error("Unable to create path from proxy to cache");
@@ -438,7 +446,7 @@ public class IcnService implements
      * @param mbox Middlebox where the flow is directed.
      * @return Ouput port that must be used by the input switch.
      */
-    private boolean programProxyPath(IcnFlow originalreq, IMiddlebox proxy, Location origin, IMiddlebox mbox) {
+    private boolean programProxyPath(String service, IcnFlow originalreq, IMiddlebox proxy, Location origin, IMiddlebox mbox) {
         log.info("Creating connection for middlebox {} <-> {}", origin.toString(), mbox.getLocation().toString());
         log.debug("Original req: {}", originalreq);
         log.debug("REST Request:  creating paths");
@@ -455,7 +463,7 @@ public class IcnService implements
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
         IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
         log.debug("prefix origin (proxy) {} destination (provider) {}", proxyprefix, originaldestprefix);
-        if(!createPath(appId, pathService, flowObjectiveService,
+        if(!createPath(service, appId, pathService, flowObjectiveService,
                 proxyprefix,
                 originaldestprefix,
                 true, proxysrcport, true, UtilIcn.HTTP_PORT,
@@ -472,7 +480,7 @@ true, cacheMac,
         return false;
         }
 
-        if (!createPath(appId, pathService, flowObjectiveService,
+        if (!createPath(service, appId, pathService, flowObjectiveService,
                 cacheprefix,
                 proxyprefix,
                 true, mbox.getPort(), true, proxysrcport,
@@ -495,7 +503,7 @@ true, cacheMac,
     }
 
     @Override
-    public boolean createPrefetchingPath(IMiddlebox proxy, Location origin, IMiddlebox mbox, Ip4Address icnAddress, short icnPort) {
+    public boolean createPrefetchingPath(String service, IMiddlebox proxy, Location origin, IMiddlebox mbox, Ip4Address icnAddress, short icnPort) {
         int proxyprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
         int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
         MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
@@ -503,7 +511,7 @@ true, cacheMac,
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
 
 
-        if(!createPath(appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
+        if(!createPath(service, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
                 true, icnPort, null, null, null,
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
@@ -513,7 +521,7 @@ true, cacheMac,
             return false;
         }
 
-        if(!createPath(appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
+        if(!createPath(service, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
                 true, icnPort, null, null, null,
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
@@ -732,6 +740,7 @@ true, cacheMac,
     }
 
     private class IcnPacketProcessor implements PacketProcessor {
+        long serviceId = 1;
 
         @Override
         /**
@@ -860,7 +869,7 @@ true, cacheMac,
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
             log.debug("Packet Processor creating paths");
             // Create path from host to proxy
-            boolean toproxy = createPath(appId, pathService, flowObjectiveService,
+            boolean toproxy = createPath("pprocess" + serviceId, appId, pathService, flowObjectiveService,
                     ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
                     false, (short)0,true, UtilIcn.HTTP_PORT,
                     ethPkt, ipv4Pkt, tcpPkt,
@@ -869,13 +878,14 @@ true, cacheMac,
                     true, outaddress, true, outl2address, true, TpPort.tpPort(proxy.getPort()));
             log.info("Path created toproxy {}", toproxy);
             // Create return intent
-            boolean fromproxy = createPath(appId, pathService, flowObjectiveService,
+            boolean fromproxy = createPath("pprocess" + serviceId, appId, pathService, flowObjectiveService,
                     outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(),
                     true, proxy.getPort(),false, (short) 0,
                     ethPkt, ipv4Pkt, tcpPkt,
                     destinationConnectPoint, sourceConnectPoint, true,
                     dstAddr, false, dstl2Addr, true, TpPort.tpPort(UtilIcn.HTTP_PORT),
                     false, null, false, null, false, null);
+            serviceId++;
             log.info("Path created fromproxy {}", fromproxy);
             // Take care of actual package
             TrafficTreatment treatment = DefaultTrafficTreatment.builder()
@@ -910,8 +920,350 @@ true, cacheMac,
                 // One of our rules has been removed
                 InternalIcnFlow icnFlow = new InternalIcnFlow(flowRule.selector(), flowRule.treatment());
                 log.debug("Expiring flow: {}", icnFlow);
-                flowExpired(icnFlow);
+                flowExpired(flowRule.deviceId(), icnFlow);
             }
+        }
+    }
+    
+    class PathIndex {
+        DeviceId node;
+        ApplicationId appId;
+        int matchIpsrc;
+        int matchIpDst;
+        boolean matchPortSrc;
+        int srcport;
+        boolean matchPortDst;
+        int dstport;
+        Ethernet ethIn;
+        IPv4 ipIn;
+        TCP tcpIn;
+        ConnectPoint source;
+        ConnectPoint destination;
+        boolean rewriteSourceIP;
+        IpAddress rwsourceAddr;
+        boolean rewriteSourceMAC;
+        MacAddress rwsourcel2Addr;
+        boolean rewriteSourcePort;
+        TpPort rwsourceport;
+        boolean rewriteDestinationIP;
+        IpAddress rwdestinationAddr;
+        boolean rewriteDestinationMAC;
+        MacAddress rwdestinationl2Addr;
+        boolean rewriteDestinationPort;
+        TpPort rwdestport;
+        String service;
+
+        public PathIndex(String service, DeviceId node, ApplicationId appId, int matchIpsrc, int matchIpDst, boolean matchPortSrc, int srcport, boolean matchPortDst, int dstport, Ethernet ethIn, IPv4 ipIn, TCP tcpIn, ConnectPoint source, ConnectPoint destination, boolean rewriteSourceIP, IpAddress rwsourceAddr, boolean rewriteSourceMAC, MacAddress rwsourcel2Addr, boolean rewriteSourcePort, TpPort rwsourceport, boolean rewriteDestinationIP, IpAddress rwdestinationAddr, boolean rewriteDestinationMAC, MacAddress rwdestinationl2Addr, boolean rewriteDestinationPort, TpPort rwdestport) {
+            this.node = node;
+            this.service = service;
+            this.appId = appId;
+            this.matchIpsrc = matchIpsrc;
+            this.matchIpDst = matchIpDst;
+            this.matchPortSrc = matchPortSrc;
+            this.srcport = srcport;
+            this.matchPortDst = matchPortDst;
+            this.dstport = dstport;
+            this.ethIn = ethIn;
+            this.ipIn = ipIn;
+            this.tcpIn = tcpIn;
+            this.source = source;
+            this.destination = destination;
+            this.rewriteSourceIP = rewriteSourceIP;
+            this.rwsourceAddr = rwsourceAddr;
+            this.rewriteSourceMAC = rewriteSourceMAC;
+            this.rwsourcel2Addr = rwsourcel2Addr;
+            this.rewriteSourcePort = rewriteSourcePort;
+            this.rwsourceport = rwsourceport;
+            this.rewriteDestinationIP = rewriteDestinationIP;
+            this.rwdestinationAddr = rwdestinationAddr;
+            this.rewriteDestinationMAC = rewriteDestinationMAC;
+            this.rwdestinationl2Addr = rwdestinationl2Addr;
+            this.rewriteDestinationPort = rewriteDestinationPort;
+            this.rwdestport = rwdestport;
+        }
+
+        public DeviceId getNode() {
+            return node;
+        }
+
+        public void setNode(DeviceId node) {
+            this.node = node;
+        }
+
+        public ApplicationId getAppId() {
+            return appId;
+        }
+
+        public void setAppId(ApplicationId appId) {
+            this.appId = appId;
+        }
+
+        public int getMatchIpsrc() {
+            return matchIpsrc;
+        }
+
+        public void setMatchIpsrc(int matchIpsrc) {
+            this.matchIpsrc = matchIpsrc;
+        }
+
+        public int getMatchIpDst() {
+            return matchIpDst;
+        }
+
+        public void setMatchIpDst(int matchIpDst) {
+            this.matchIpDst = matchIpDst;
+        }
+
+        public boolean isMatchPortSrc() {
+            return matchPortSrc;
+        }
+
+        public void setMatchPortSrc(boolean matchPortSrc) {
+            this.matchPortSrc = matchPortSrc;
+        }
+
+        public int getSrcport() {
+            return srcport;
+        }
+
+        public void setSrcport(int srcport) {
+            this.srcport = srcport;
+        }
+
+        public boolean isMatchPortDst() {
+            return matchPortDst;
+        }
+
+        public void setMatchPortDst(boolean matchPortDst) {
+            this.matchPortDst = matchPortDst;
+        }
+
+        public int getDstport() {
+            return dstport;
+        }
+
+        public void setDstport(int dstport) {
+            this.dstport = dstport;
+        }
+
+        public Ethernet getEthIn() {
+            return ethIn;
+        }
+
+        public void setEthIn(Ethernet ethIn) {
+            this.ethIn = ethIn;
+        }
+
+        public IPv4 getIpIn() {
+            return ipIn;
+        }
+
+        public void setIpIn(IPv4 ipIn) {
+            this.ipIn = ipIn;
+        }
+
+        public TCP getTcpIn() {
+            return tcpIn;
+        }
+
+        public void setTcpIn(TCP tcpIn) {
+            this.tcpIn = tcpIn;
+        }
+
+        public ConnectPoint getSource() {
+            return source;
+        }
+
+        public void setSource(ConnectPoint source) {
+            this.source = source;
+        }
+
+        public ConnectPoint getDestination() {
+            return destination;
+        }
+
+        public void setDestination(ConnectPoint destination) {
+            this.destination = destination;
+        }
+
+        public boolean isRewriteSourceIP() {
+            return rewriteSourceIP;
+        }
+
+        public void setRewriteSourceIP(boolean rewriteSourceIP) {
+            this.rewriteSourceIP = rewriteSourceIP;
+        }
+
+        public IpAddress getRwsourceAddr() {
+            return rwsourceAddr;
+        }
+
+        public void setRwsourceAddr(IpAddress rwsourceAddr) {
+            this.rwsourceAddr = rwsourceAddr;
+        }
+
+        public boolean isRewriteSourceMAC() {
+            return rewriteSourceMAC;
+        }
+
+        public void setRewriteSourceMAC(boolean rewriteSourceMAC) {
+            this.rewriteSourceMAC = rewriteSourceMAC;
+        }
+
+        public MacAddress getRwsourcel2Addr() {
+            return rwsourcel2Addr;
+        }
+
+        public void setRwsourcel2Addr(MacAddress rwsourcel2Addr) {
+            this.rwsourcel2Addr = rwsourcel2Addr;
+        }
+
+        public boolean isRewriteSourcePort() {
+            return rewriteSourcePort;
+        }
+
+        public void setRewriteSourcePort(boolean rewriteSourcePort) {
+            this.rewriteSourcePort = rewriteSourcePort;
+        }
+
+        public TpPort getRwsourceport() {
+            return rwsourceport;
+        }
+
+        public void setRwsourceport(TpPort rwsourceport) {
+            this.rwsourceport = rwsourceport;
+        }
+
+        public boolean isRewriteDestinationIP() {
+            return rewriteDestinationIP;
+        }
+
+        public void setRewriteDestinationIP(boolean rewriteDestinationIP) {
+            this.rewriteDestinationIP = rewriteDestinationIP;
+        }
+
+        public IpAddress getRwdestinationAddr() {
+            return rwdestinationAddr;
+        }
+
+        public void setRwdestinationAddr(IpAddress rwdestinationAddr) {
+            this.rwdestinationAddr = rwdestinationAddr;
+        }
+
+        public boolean isRewriteDestinationMAC() {
+            return rewriteDestinationMAC;
+        }
+
+        public void setRewriteDestinationMAC(boolean rewriteDestinationMAC) {
+            this.rewriteDestinationMAC = rewriteDestinationMAC;
+        }
+
+        public MacAddress getRwdestinationl2Addr() {
+            return rwdestinationl2Addr;
+        }
+
+        public void setRwdestinationl2Addr(MacAddress rwdestinationl2Addr) {
+            this.rwdestinationl2Addr = rwdestinationl2Addr;
+        }
+
+        public boolean isRewriteDestinationPort() {
+            return rewriteDestinationPort;
+        }
+
+        public void setRewriteDestinationPort(boolean rewriteDestinationPort) {
+            this.rewriteDestinationPort = rewriteDestinationPort;
+        }
+
+        public TpPort getRwdestport() {
+            return rwdestport;
+        }
+
+        public void setRwdestport(TpPort rwdestport) {
+            this.rwdestport = rwdestport;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof PathIndex)) return false;
+
+            PathIndex pathIndex = (PathIndex) o;
+
+            if (getMatchIpsrc() != pathIndex.getMatchIpsrc()) return false;
+            if (getMatchIpDst() != pathIndex.getMatchIpDst()) return false;
+            if (isMatchPortSrc() != pathIndex.isMatchPortSrc()) return false;
+            if (getSrcport() != pathIndex.getSrcport()) return false;
+            if (isMatchPortDst() != pathIndex.isMatchPortDst()) return false;
+            if (getDstport() != pathIndex.getDstport()) return false;
+            if (isRewriteSourceIP() != pathIndex.isRewriteSourceIP())
+                return false;
+            if (isRewriteSourceMAC() != pathIndex.isRewriteSourceMAC())
+                return false;
+            if (isRewriteSourcePort() != pathIndex.isRewriteSourcePort())
+                return false;
+            if (isRewriteDestinationIP() != pathIndex.isRewriteDestinationIP())
+                return false;
+            if (isRewriteDestinationMAC() != pathIndex.isRewriteDestinationMAC())
+                return false;
+            if (isRewriteDestinationPort() != pathIndex.isRewriteDestinationPort())
+                return false;
+            if (!getNode().equals(pathIndex.getNode())) return false;
+            if (!getAppId().equals(pathIndex.getAppId())) return false;
+            if (getEthIn() != null ? !getEthIn().equals(pathIndex.getEthIn()) : pathIndex.getEthIn() != null)
+                return false;
+            if (getIpIn() != null ? !getIpIn().equals(pathIndex.getIpIn()) : pathIndex.getIpIn() != null)
+                return false;
+            if (getTcpIn() != null ? !getTcpIn().equals(pathIndex.getTcpIn()) : pathIndex.getTcpIn() != null)
+                return false;
+            if (getSource() != null ? !getSource().equals(pathIndex.getSource()) : pathIndex.getSource() != null)
+                return false;
+            if (getDestination() != null ? !getDestination().equals(pathIndex.getDestination()) : pathIndex.getDestination() != null)
+                return false;
+            if (getRwsourceAddr() != null ? !getRwsourceAddr().equals(pathIndex.getRwsourceAddr()) : pathIndex.getRwsourceAddr() != null)
+                return false;
+            if (getRwsourcel2Addr() != null ? !getRwsourcel2Addr().equals(pathIndex.getRwsourcel2Addr()) : pathIndex.getRwsourcel2Addr() != null)
+                return false;
+            if (getRwsourceport() != null ? !getRwsourceport().equals(pathIndex.getRwsourceport()) : pathIndex.getRwsourceport() != null)
+                return false;
+            if (getRwdestinationAddr() != null ? !getRwdestinationAddr().equals(pathIndex.getRwdestinationAddr()) : pathIndex.getRwdestinationAddr() != null)
+                return false;
+            if (getRwdestinationl2Addr() != null ? !getRwdestinationl2Addr().equals(pathIndex.getRwdestinationl2Addr()) : pathIndex.getRwdestinationl2Addr() != null)
+                return false;
+            return getRwdestport() != null ? getRwdestport().equals(pathIndex.getRwdestport()) : pathIndex.getRwdestport() == null;
+        }
+
+        public String service() {
+            return service;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = getNode().hashCode();
+            result = 31 * result + getAppId().hashCode();
+            result = 31 * result + getMatchIpsrc();
+            result = 31 * result + getMatchIpDst();
+            result = 31 * result + (isMatchPortSrc() ? 1 : 0);
+            result = 31 * result + getSrcport();
+            result = 31 * result + (isMatchPortDst() ? 1 : 0);
+            result = 31 * result + getDstport();
+            result = 31 * result + (getEthIn() != null ? getEthIn().hashCode() : 0);
+            result = 31 * result + (getIpIn() != null ? getIpIn().hashCode() : 0);
+            result = 31 * result + (getTcpIn() != null ? getTcpIn().hashCode() : 0);
+            result = 31 * result + (getSource() != null ? getSource().hashCode() : 0);
+            result = 31 * result + (getDestination() != null ? getDestination().hashCode() : 0);
+            result = 31 * result + (isRewriteSourceIP() ? 1 : 0);
+            result = 31 * result + (getRwsourceAddr() != null ? getRwsourceAddr().hashCode() : 0);
+            result = 31 * result + (isRewriteSourceMAC() ? 1 : 0);
+            result = 31 * result + (getRwsourcel2Addr() != null ? getRwsourcel2Addr().hashCode() : 0);
+            result = 31 * result + (isRewriteSourcePort() ? 1 : 0);
+            result = 31 * result + (getRwsourceport() != null ? getRwsourceport().hashCode() : 0);
+            result = 31 * result + (isRewriteDestinationIP() ? 1 : 0);
+            result = 31 * result + (getRwdestinationAddr() != null ? getRwdestinationAddr().hashCode() : 0);
+            result = 31 * result + (isRewriteDestinationMAC() ? 1 : 0);
+            result = 31 * result + (getRwdestinationl2Addr() != null ? getRwdestinationl2Addr().hashCode() : 0);
+            result = 31 * result + (isRewriteDestinationPort() ? 1 : 0);
+            result = 31 * result + (getRwdestport() != null ? getRwdestport().hashCode() : 0);
+            return result;
         }
     }
 

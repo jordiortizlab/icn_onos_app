@@ -35,6 +35,6 @@ public interface IIcnPrivateService {
      */
     public boolean processResourceRequest(ProxyRequest req);
 
-    public boolean createPrefetchingPath(IMiddlebox proxy, Location origin, IMiddlebox mbox,
+    public boolean createPrefetchingPath(String service, IMiddlebox proxy, Location origin, IMiddlebox mbox,
                                          Ip4Address icnAddress, short icnPort);
 }

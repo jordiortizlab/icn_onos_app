@@ -66,6 +66,8 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
     private long prefetching_ip = 167772160;
     private short prefetching_port = 1;
 
+    private long serviceId = 1L;
+
     public IcnClosestCacheDASH() {
         super();
         pool = Executors.newFixedThreadPool(1);
@@ -127,8 +129,9 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             RepresentationDASH representationDASH = r.representation4URL(x);
             if (representationDASH != null) {
                 // prefetch Representation
-                pool.execute(new RepresentationPrefecther(representationDASH, proxy, r));
+                pool.execute(new RepresentationPrefecther(serviceId, representationDASH, proxy, r));
             }
+            serviceId += representationDASH.getFullUrls().size() + 1L;
         });
 
         return super.createResource(resourceDASH == null ? resourceHTTP : resourceDASH);
@@ -231,11 +234,13 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
     class RepresentationPrefecther implements Runnable {
 
+        long serviceId;
         RepresentationDASH rep;
         Proxy proxy;
         ResourceHTTPDASH res;
 
-        public RepresentationPrefecther(RepresentationDASH rep, Proxy p, ResourceHTTPDASH r) {
+        public RepresentationPrefecther(long serviceId, RepresentationDASH rep, Proxy p, ResourceHTTPDASH r) {
+            this.serviceId = serviceId;
             this.rep = rep;
             this.proxy = p;
             this.res = r;
@@ -288,11 +293,12 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 generateNewPrefetchingIpandPort();
                 Ip4Address icnAddress = Ip4Address.valueOf(getPrefetchingIpStr());
                 short icnPort = getPrefetchingPort();
-                if(!icnservice.createPrefetchingPath(proxy, proxy.location, c, icnAddress, icnPort)){
+                if(!icnservice.createPrefetchingPath("prefetch" + serviceId, proxy, proxy.location, c, icnAddress, icnPort)){
                     log.error("Unable to create prefetching path. Aborting\n {} {} {} {} {}",
                             proxy, proxy.location, c, icnAddress, icnPort);
                     return;
                 }
+                serviceId++;
                 postHTTP(url);
             });
         }
