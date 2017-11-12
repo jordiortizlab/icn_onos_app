@@ -860,15 +860,15 @@ true, cacheMac,
                     ethPkt, ipv4Pkt, tcpPkt,
                     sourceConnectPoint, destinationConnectPoint, false,
                     null, false, null, false, null,
-                    true, outaddress, true, outl2address, false, null);
+                    true, outaddress, true, outl2address, true, TpPort.tpPort(proxy.getPort()));
             log.info("Path created toproxy {}", toproxy);
             // Create return intent
             boolean fromproxy = createPath(appId, pathService, flowObjectiveService,
                     outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(),
-                    true, UtilIcn.HTTP_PORT,false, (short) 0,
+                    true, proxy.getPort(),false, (short) 0,
                     ethPkt, ipv4Pkt, tcpPkt,
                     destinationConnectPoint, sourceConnectPoint, true,
-                    dstAddr, false, dstl2Addr, false, null,
+                    dstAddr, false, dstl2Addr, true, TpPort.tpPort(UtilIcn.HTTP_PORT),
                     false, null, false, null, false, null);
             log.info("Path created fromproxy {}", fromproxy);
             // Take care of actual package
