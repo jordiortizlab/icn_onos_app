@@ -179,7 +179,10 @@ public class IcnService implements
                                         boolean rewriteDestinationMAC, MacAddress rwdestinationl2Addr,
                                         boolean rewriteDestinationPort, TpPort rwdestport) {
         String idx = matchIpsrc+ "|" + matchIpDst+ "|" + matchPortSrc+ "|" + srcport+ "|" + matchPortDst+ "|" + dstport+ "|" + source+ "|" + destination+ "|" + rewriteSourceIP+ "|" + rwsourceAddr+ "|" + rwsourcel2Addr+ "|" + rewriteDestinationIP+ "|" + rwdestinationAddr+ "|" + rwdestinationl2Addr;
-
+        if (source.equals(destination)) {
+            log.error("Source = Destination {}", source);
+            return false;
+        }
         log.debug("Creating path matchIpSrc {} matchIpDst {} matchPortSrc {}:{} matchPorDst {}:{} source {} destination {} ",
                 matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, source, destination);
         log.debug("rewriteSource {} {} {}", rewriteSourceIP, rwsourceAddr, rwsourcel2Addr);
