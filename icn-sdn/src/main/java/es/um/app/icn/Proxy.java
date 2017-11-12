@@ -31,9 +31,13 @@ public class Proxy implements IMiddlebox {
 	protected int prefetch_port;
 	/** Proxy type, e.g. "http", "https" or "http2ccn" */
 	protected String type;
+
+	protected boolean isReactive;
 	
 	public Proxy() {
-		
+		isReactive = false;
+		port = 8080;
+		prefetch_port = 8081;
 	}
 
 	public String getName() {
@@ -100,6 +104,14 @@ public class Proxy implements IMiddlebox {
 		this.prefetch_port = prefetch_port;
 	}
 
+	public boolean isReactive() {
+		return isReactive;
+	}
+
+	public void setReactive(boolean reactive) {
+		isReactive = reactive;
+	}
+
 	@Override
 	public String toString() {
 		return "Proxy{" +
@@ -111,6 +123,7 @@ public class Proxy implements IMiddlebox {
 				", port=" + port + '\n' +
 				", prefetch_port=" + prefetch_port + '\n' +
 				", type='" + type + '\'' +
+				", reactive='" + isReactive + '\'' +
 				'}';
 	}
 }

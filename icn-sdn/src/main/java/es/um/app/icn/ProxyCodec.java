@@ -24,6 +24,7 @@ public class ProxyCodec extends JsonCodec<Proxy> {
     private static final String PROXYPORT_FIELD = "port";
     private static final String PREFETCHPORT_FIELD = "prefetchport";
     private static final String TYPE_FIELD = "type";
+    private static final String REACTIVE = "isReactive";
 
     @Override
     public ObjectNode encode(Proxy proxy, CodecContext context) {
@@ -35,7 +36,8 @@ public class ProxyCodec extends JsonCodec<Proxy> {
                 .put(IPADDR_FIELD, proxy.getIpaddr())
                 .put(MACADDR_FIELD, proxy.getMacaddr())
                 .put(PROXYPORT_FIELD, proxy.getPort())
-                .put(TYPE_FIELD, proxy.getType());
+                .put(TYPE_FIELD, proxy.getType())
+                .put(REACTIVE, proxy.isReactive);
         if (proxy.getLocation() != null) {
             ObjectNode locationobject = new LocationCodec().encode(proxy.getLocation(), context);
             try {
@@ -65,6 +67,8 @@ public class ProxyCodec extends JsonCodec<Proxy> {
             proxy.setPort(json.get(PROXYPORT_FIELD).asInt());
         if(json.get(PREFETCHPORT_FIELD) != null)
             proxy.setPrefetch_port(json.get(PREFETCHPORT_FIELD).asInt());
+        if(json.get(REACTIVE) != null)
+            proxy.setReactive(json.get(REACTIVE).asBoolean());
         proxy.setMacaddr(json.get(MACADDR_FIELD).asText());
         proxy.setType(json.get(TYPE_FIELD).asText());
         JsonNode locationjson = json.get(LOCATION_FIELD);
