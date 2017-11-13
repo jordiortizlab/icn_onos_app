@@ -1,0 +1,14 @@
+{
+  "devices": {
+      "of:000a1c98ec7fea40": { "basic": { "name": "BBAA" }},
+      "of:000a645106c0b080": { "basic": { "name": "ATICA1" }},
+      "of:000b645106c0b080": { "basic": { "name": "ATICA2" }},
+      "of:000a645106c87400": { "basic": { "name": "GAIA" }},
+      "of:000a1c98ec7fdac0": { "basic": { "name": "MATH" }}
+  },
+   "hosts": {
+       "00:17:95:BC:70:B1/None": { "basic": { "ips": [ "10.7.0.1" ],  "name": "CiscoRouter" }},
+       "02:EB:71:00:00:03/None": { "basic": { "ips": [ "10.7.0.51" ],  "name": "Client1@Saruman"}},
+       "02:EB:72:00:00:01/None": { "basic": { "ips": [ "10.7.0.101" ],  "name": "Proxy@Elrond"}}
+   }
+}
