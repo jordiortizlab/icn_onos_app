@@ -135,7 +135,7 @@ public class IcnService implements
         withdrawIntercepts();
         packetService.removeProcessor(icnPacketProcessor);
         flowRuleService.removeListener(flowListener);
-
+        clearFlows();
     }
 
     @Modified
@@ -169,7 +169,24 @@ public class IcnService implements
         // TODO: Missing IPv6
     }
 
-    protected boolean createPath(String service, ApplicationId appId, PathService pathService, FlowObjectiveService flowObjectiveService,
+
+    private void clearFlows() {
+        flows.forEach((k,v) -> removeFlowPath(k,v));
+    }
+
+    private boolean removeFlowPath(PathIndex idx, InternalIcnFlow flow) {
+        DefaultForwardingObjective.Builder builder = DefaultForwardingObjective.builder()
+                .withSelector(flow.getSelector())
+                .withTreatment(flow.getTreatment())
+                .withPriority(INTENT_PRIORITY_HIGH)
+                .makeTemporary(DEFAULT_FLOW_TIMEOUT)
+                .fromApp(appId)
+                .withFlag(ForwardingObjective.Flag.SPECIFIC);
+        flowObjectiveService.forward(idx.getNode(), builder.remove());
+        return true;
+    }
+
+    protected boolean createPath(String service, int timeout, ApplicationId appId, PathService pathService, FlowObjectiveService flowObjectiveService,
                                         int matchIpsrc, int matchIpDst, boolean matchPortSrc, int srcport, boolean matchPortDst, int dstport,
                                         Ethernet ethIn, IPv4 ipIn, TCP tcpIn,
                                         ConnectPoint source, ConnectPoint destination,
