@@ -71,7 +71,8 @@ public class IcnService implements
     protected static final int PROCESSOR_PRIORITY = 2;
     protected static final int INTENT_PRIORITY_HIGH = 3000;
     protected static final int INTENT_PRIORITY_LOW = 100;
-    protected static final int DEFAULT_FLOW_TIMEOUT = 10;
+    protected static final int DEFAULT_FLOW_TIMEOUT = 1;
+    protected static final int PROXYPATH_FLOW_TIMEOUT = 100;
 
     /** Onos Services */
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
@@ -257,9 +258,11 @@ public class IcnService implements
                             .withSelector(selector)
                             .withTreatment(treatment)
                             .withPriority(INTENT_PRIORITY_HIGH)
-                            .makeTemporary(DEFAULT_FLOW_TIMEOUT)
                             .fromApp(appId)
                             .withFlag(ForwardingObjective.Flag.SPECIFIC);
+                    if (timeout > 0) {
+                        fobuilder.makeTemporary(timeout);
+                    }
                     flowObjectiveService.forward(link.src().deviceId(), fobuilder.add());
                     log.debug("Preparing path: {} {} {}", link.src().deviceId(), selector, treatment);
                     InternalIcnFlow icnflow = new InternalIcnFlow(selector, treatment);
@@ -480,7 +483,7 @@ public class IcnService implements
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
         IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
         log.debug("prefix origin (proxy) {} destination (provider) {}", proxyprefix, originaldestprefix);
-        if(!createPath(service, appId, pathService, flowObjectiveService,
+        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
                 proxyprefix,
                 originaldestprefix,
                 true, proxysrcport, true, UtilIcn.HTTP_PORT,
@@ -497,7 +500,7 @@ true, cacheMac,
         return false;
         }
 
-        if (!createPath(service, appId, pathService, flowObjectiveService,
+        if (!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
                 cacheprefix,
                 proxyprefix,
                 true, mbox.getPort(), true, proxysrcport,
@@ -528,7 +531,7 @@ true, cacheMac,
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
 
 
-        if(!createPath(service, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
+        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
                 true, icnPort, null, null, null,
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
@@ -538,7 +541,7 @@ true, cacheMac,
             return false;
         }
 
-        if(!createPath(service, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
+        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
                 true, icnPort, null, null, null,
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
@@ -886,7 +889,7 @@ true, cacheMac,
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
             log.debug("Packet Processor creating paths");
             // Create path from host to proxy
-            boolean toproxy = createPath("pprocess" + serviceId, appId, pathService, flowObjectiveService,
+            boolean toproxy = createPath("pprocess" + serviceId, PROXYPATH_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
                     ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
                     false, (short)0,true, UtilIcn.HTTP_PORT,
                     ethPkt, ipv4Pkt, tcpPkt,
@@ -895,7 +898,7 @@ true, cacheMac,
                     true, outaddress, true, outl2address, true, TpPort.tpPort(proxy.getPort()));
             log.info("Path created toproxy {}", toproxy);
             // Create return intent
-            boolean fromproxy = createPath("pprocess" + serviceId, appId, pathService, flowObjectiveService,
+            boolean fromproxy = createPath("pprocess" + serviceId, PROXYPATH_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
                     outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(),
                     true, proxy.getPort(),false, (short) 0,
                     ethPkt, ipv4Pkt, tcpPkt,
