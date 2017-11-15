@@ -346,7 +346,7 @@ public class IcnService implements
         if (collectedEntries.size() != 1) {
             log.warn("More than one internal flow coincide {}", collectedEntries.keySet());
         }
-        collectedEntries.keySet().forEach(k -> flows.remove(k));
+        flows.keySet().removeAll(collectedEntries.keySet());
 
         return true;
     }
