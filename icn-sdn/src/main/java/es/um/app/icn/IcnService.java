@@ -71,8 +71,8 @@ public class IcnService implements
     protected static final int PROCESSOR_PRIORITY = 2;
     protected static final int INTENT_PRIORITY_HIGH = 3000;
     protected static final int INTENT_PRIORITY_LOW = 100;
-    protected static final int DEFAULT_FLOW_TIMEOUT = 1;
-    protected static final int PROXYPATH_FLOW_TIMEOUT = 100;
+    protected static final int DEFAULT_FLOW_TIMEOUT = 10;
+    protected static final int PROXYPATH_FLOW_TIMEOUT = 60;
 
     /** Onos Services */
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
