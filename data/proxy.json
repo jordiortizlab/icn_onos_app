@@ -1,1 +1,1 @@
-{ "name" : "proxyMAT", "description" : "HTTP proxy at MATHS@Elrond", "macaddr" : "02:EB:72:00:00:01", "ipaddr" : "10.207.10.101" , "port" : "8080", "prefetch_port" : "8081",  "type" : "http", "location" : { "dpid" : "of:000a1c98ec7fdac0", "port" : "13" } }
+{ "name" : "proxyMAT", "description" : "HTTP proxy at MATHS@Elrond", "macaddr" : "02:EB:73:00:00:01", "ipaddr" : "10.207.10.101" , "port" : "8080", "prefetch_port" : "8081",  "type" : "http", "location" : { "dpid" : "of:000a1c98ec7fdac0", "port" : "13" } }
