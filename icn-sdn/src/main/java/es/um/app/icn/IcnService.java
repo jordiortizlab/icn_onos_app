@@ -221,6 +221,7 @@ public class IcnService implements
         }
 
         if (!source.deviceId().equals(destination.deviceId())) {
+            log.debug("Indirect connection, Looking for paths");
             Set<Path> paths = pathService.getPaths(source.elementId(), destination.elementId());
             if (paths.isEmpty()) {
                 log.error("Unable to locate any path");
@@ -234,7 +235,7 @@ public class IcnService implements
                 for (Link link : path.links()) {
                     PathIndex idx = new PathIndex(service, link.src().deviceId(), appId, matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, ethIn, ipIn, tcpIn,
                             source, destination,
-                            rewriteSourceIP, rwsourceAddr, rewriteSourceMAC,rwsourcel2Addr, rewriteSourcePort, rwsourceport,
+                            rewriteSourceIP, rwsourceAddr, rewriteSourceMAC, rwsourcel2Addr, rewriteSourcePort, rwsourceport,
                             rewriteDestinationIP, rwdestinationAddr, rewriteDestinationMAC, rwdestinationl2Addr, rewriteDestinationPort, rwdestport);
                     if (flows.containsKey(idx)) {
                         log.debug("Flow {} was already requested, ignoring.", idx);
@@ -270,72 +271,75 @@ public class IcnService implements
                     sourceport = link.dst().port();
                 }
             }
-            // Now we need to treat last jump
-            if (source.deviceId().equals(destination.deviceId())) {
-                log.debug("Same device");
-                sourceport = source.port();
-            }
-            PathIndex idx = new PathIndex(service, destination.deviceId(), appId, matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, ethIn, ipIn, tcpIn,
-                    source, destination,
-                    rewriteSourceIP, rwsourceAddr, rewriteSourceMAC,rwsourcel2Addr, rewriteSourcePort, rwsourceport,
-                    rewriteDestinationIP, rwdestinationAddr, rewriteDestinationMAC, rwdestinationl2Addr, rewriteDestinationPort, rwdestport);
-            if (flows.containsKey(idx)) {
-                log.debug("Flow {} was already requested, ignoring.", idx);
-                return true;
-            }
-
-            destinationport = destination.port();
-            TrafficSelector selector = trafficSelectorBuilder
-                    .matchInPort(sourceport)
-                    .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
-                    .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
-                    .build();
-
-            TrafficTreatment treatment = null;
-
-
-
-            TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
-
-            if (rewriteSourceIP) {
-                builder.setIpSrc(rwsourceAddr);
-                builder.immediate();
-            }
-            if (rewriteSourceMAC) {
-                builder.setEthSrc(rwsourcel2Addr);
-                builder.immediate();
-            }
-            if (rewriteSourcePort) {
-                builder.setTcpSrc(rwsourceport);
-                builder.immediate();
-            }
-            if (rewriteDestinationIP) {
-                builder.setIpDst(rwdestinationAddr);
-                builder.immediate();
-            }
-            if(rewriteDestinationMAC) {
-                builder.setEthDst(rwdestinationl2Addr);
-                builder.immediate();
-            }
-            if(rewriteDestinationPort) {
-                builder.setTcpDst(rwdestport);
-                builder.immediate();
-            }
-            builder.setOutput(destinationport);
-            treatment = builder.build();
-
-            ForwardingObjective.Builder fobuilder = DefaultForwardingObjective.builder()
-                    .withSelector(selector)
-                    .withTreatment(treatment)
-                    .withPriority(INTENT_PRIORITY_HIGH)
-                    .makeTemporary(DEFAULT_FLOW_TIMEOUT)
-                    .fromApp(appId)
-                    .withFlag(ForwardingObjective.Flag.SPECIFIC);
-            flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
-            log.debug("Preparing final jump: {} {}", selector, treatment);
-            InternalIcnFlow icnflow = new InternalIcnFlow(selector, treatment);
-            flows.put(idx, icnflow);
+        } else {
+            log.debug("Direct connection, same switch");
         }
+        // Now we need to treat last jump
+        if (source.deviceId().equals(destination.deviceId())) {
+            log.debug("Same device");
+            sourceport = source.port();
+        }
+        PathIndex idx = new PathIndex(service, destination.deviceId(), appId, matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, ethIn, ipIn, tcpIn,
+                source, destination,
+                rewriteSourceIP, rwsourceAddr, rewriteSourceMAC,rwsourcel2Addr, rewriteSourcePort, rwsourceport,
+                rewriteDestinationIP, rwdestinationAddr, rewriteDestinationMAC, rwdestinationl2Addr, rewriteDestinationPort, rwdestport);
+        if (flows.containsKey(idx)) {
+            log.debug("Flow {} was already requested, ignoring.", idx);
+            return true;
+        }
+
+        destinationport = destination.port();
+        TrafficSelector selector = trafficSelectorBuilder
+                .matchInPort(sourceport)
+                .matchIPSrc(IpPrefix.valueOf(matchIpsrc, 32))
+                .matchIPDst(IpPrefix.valueOf(matchIpDst, 32))
+                .build();
+
+        TrafficTreatment treatment = null;
+
+
+
+        TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
+
+        if (rewriteSourceIP) {
+            builder.setIpSrc(rwsourceAddr);
+            builder.immediate();
+        }
+        if (rewriteSourceMAC) {
+            builder.setEthSrc(rwsourcel2Addr);
+            builder.immediate();
+        }
+        if (rewriteSourcePort) {
+            builder.setTcpSrc(rwsourceport);
+            builder.immediate();
+        }
+        if (rewriteDestinationIP) {
+            builder.setIpDst(rwdestinationAddr);
+            builder.immediate();
+        }
+        if(rewriteDestinationMAC) {
+            builder.setEthDst(rwdestinationl2Addr);
+            builder.immediate();
+        }
+        if(rewriteDestinationPort) {
+            builder.setTcpDst(rwdestport);
+            builder.immediate();
+        }
+        builder.setOutput(destinationport);
+        treatment = builder.build();
+
+        ForwardingObjective.Builder fobuilder = DefaultForwardingObjective.builder()
+                .withSelector(selector)
+                .withTreatment(treatment)
+                .withPriority(INTENT_PRIORITY_HIGH)
+                .makeTemporary(DEFAULT_FLOW_TIMEOUT)
+                .fromApp(appId)
+                .withFlag(ForwardingObjective.Flag.SPECIFIC);
+        flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
+        log.debug("Preparing final jump: {} {}", selector, treatment);
+        InternalIcnFlow icnflow = new InternalIcnFlow(selector, treatment);
+        flows.put(idx, icnflow);
+
         return true;
     }
 
