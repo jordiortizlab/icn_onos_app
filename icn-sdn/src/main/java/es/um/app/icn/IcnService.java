@@ -447,9 +447,7 @@ public class IcnService implements
             resourceHTTP.incrRequests();
             req.flow.setDmac(c.macaddr);
         } else {
-            ResourceHTTP res = new ResourceHTTP();
-            res.setId(UtilIcn.resourceId(icn.getName(), uri));
-            res.setName(uri);
+            ResourceHTTP res = new ResourceHTTP(UtilIcn.resourceId(icn.getName(), uri), uri);
             res.setRequests(1);
             res.addCache(c);
             if (!req.getUri().contains("http://"))

@@ -43,6 +43,13 @@ public class ResourceHTTP implements Resource {
         caches = new ArrayList<Cache>();
     }
 
+    public ResourceHTTP(String id, String name) {
+        this();
+        this.id = id;
+        this.name = name;
+    }
+
+
     @Override
     public String getId() {
         return id;
