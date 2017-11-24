@@ -332,9 +332,11 @@ public class IcnService implements
                 .withSelector(selector)
                 .withTreatment(treatment)
                 .withPriority(INTENT_PRIORITY_HIGH)
-                .makeTemporary(DEFAULT_FLOW_TIMEOUT)
                 .fromApp(appId)
                 .withFlag(ForwardingObjective.Flag.SPECIFIC);
+        if (timeout > 0) {
+            fobuilder.makeTemporary(timeout);
+        }
         flowObjectiveService.forward(destination.deviceId(), fobuilder.add());
         log.debug("Preparing final jump: {} {}", selector, treatment);
         InternalIcnFlow icnflow = new InternalIcnFlow(selector, treatment);
