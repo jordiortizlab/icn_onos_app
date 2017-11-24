@@ -26,40 +26,50 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import org.apache.commons.codec.binary.Hex;
 
 public class UtilIcn {
 
-	public static final byte IPPROTO_TCP = 6;
-	public static short HTTP_PORT = 80;
-	private static String DIGEST_ALGORITHM = "SHA-1";
-	
-	public static int subnetFromCidr(String cidr) throws UnknownHostException {
-		String[] parts = cidr.split("/");
-		Inet4Address addr = (Inet4Address) InetAddress.getByName(parts[0]);
-		byte[] addrBytes = addr.getAddress();
-		int res = ((addrBytes[0] & 0xFF) << 24 |
-				(addrBytes[1] & 0xFF) << 16 |
-				(addrBytes[2] & 0xFF) << 8 |
-				(addrBytes[3] & 0xFF) << 0);
-		return res;
-	}
-	
-	public static int masklenFromCidr(String cidr) {
-		String[] parts = cidr.split("/");
-		return Integer.parseInt(parts[1]);
-	}
-	
-	public static String resourceId(String icnName, String resourceName) {
-		try {
-			MessageDigest md = MessageDigest.getInstance(DIGEST_ALGORITHM);
-			md.update(icnName.getBytes("UTF-8"));
-			md.update(resourceName.getBytes("UTF-8"));
-			return new String(Hex.encodeHex(md.digest()));
-		} catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
-	
+    public static final byte IPPROTO_TCP = 6;
+    public static short HTTP_PORT = 80;
+    private static String DIGEST_ALGORITHM = "SHA-1";
+
+    public static int subnetFromCidr(String cidr) throws UnknownHostException {
+        String[] parts = cidr.split("/");
+        Inet4Address addr = (Inet4Address) InetAddress.getByName(parts[0]);
+        byte[] addrBytes = addr.getAddress();
+        int res = ((addrBytes[0] & 0xFF) << 24 |
+                (addrBytes[1] & 0xFF) << 16 |
+                (addrBytes[2] & 0xFF) << 8 |
+                (addrBytes[3] & 0xFF) << 0);
+        return res;
+    }
+
+    public static int masklenFromCidr(String cidr) {
+        String[] parts = cidr.split("/");
+        return Integer.parseInt(parts[1]);
+    }
+
+    private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for ( int j = 0; j < bytes.length; j++ ) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = hexArray[v >>> 4];
+            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
+
+    public static String resourceId(String icnName, String resourceName) {
+        try {
+            MessageDigest md = MessageDigest.getInstance(DIGEST_ALGORITHM);
+            md.update(icnName.getBytes("UTF-8"));
+            md.update(resourceName.getBytes("UTF-8"));
+            return bytesToHex(md.digest());
+        } catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 }
