@@ -26,6 +26,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import org.apache.commons.codec.binary.Hex;
 
 public class UtilIcn {
 
@@ -54,7 +55,7 @@ public class UtilIcn {
 			MessageDigest md = MessageDigest.getInstance(DIGEST_ALGORITHM);
 			md.update(icnName.getBytes("UTF-8"));
 			md.update(resourceName.getBytes("UTF-8"));
-			return new String(md.digest(), "UTF-8");
+			return new String(Hex.encodeHex(md.digest()));
 		} catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
 			e.printStackTrace();
 			return null;
