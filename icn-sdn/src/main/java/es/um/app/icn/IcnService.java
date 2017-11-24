@@ -444,7 +444,7 @@ public class IcnService implements
 
         // Resource management
         if (resourceHTTP != null) {
-            // TODO: Increment resourceHTTP requests
+            resourceHTTP.incrRequests();
             req.flow.setDmac(c.macaddr);
         } else {
             ResourceHTTP res = new ResourceHTTP();

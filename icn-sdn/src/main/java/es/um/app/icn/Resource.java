@@ -12,6 +12,7 @@ public interface Resource {
     public void setName(String name);
     public long getRequests();
     public void setRequests(long requests);
+    public void incrRequests();
     public Collection<Cache> getCaches();
     public void setCaches(Collection<Cache> caches);
     public String getFullurl();

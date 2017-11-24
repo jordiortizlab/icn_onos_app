@@ -69,6 +69,11 @@ public class ResourceHTTP implements Resource {
     }
 
     @Override
+    public void incrRequests() {
+        requests++;
+    }
+
+    @Override
     public void setRequests(long requests) {
         this.requests = requests;
     }
