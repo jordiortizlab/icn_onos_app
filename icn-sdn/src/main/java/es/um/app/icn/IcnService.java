@@ -487,22 +487,6 @@ public class IcnService implements
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
         IpAddress ipdestprefix = Ip4Address.valueOf(originalreq.daddr);
         log.debug("prefix origin (proxy) {} destination (provider) {}", proxyprefix, originaldestprefix);
-        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
-                proxyprefix,
-                originaldestprefix,
-                true, proxysrcport, true, UtilIcn.HTTP_PORT,
-                null, null, null,
-                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
-                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
-                false, null,
-false,null,
-                false, null,
-                true, ipcacheprefix,
-true, cacheMac,
-                true, TpPort.tpPort(mbox.getPort()))) {
-            log.error("programProxyPath(): Unable to create path from proxy to cache");
-        return false;
-        }
 
         if (!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
                 cacheprefix,
@@ -521,6 +505,24 @@ true, cacheMac,
             return false;
         }
 
+
+        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
+                proxyprefix,
+                originaldestprefix,
+                true, proxysrcport, true, UtilIcn.HTTP_PORT,
+                null, null, null,
+                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                false, null,
+false,null,
+                false, null,
+                true, ipcacheprefix,
+true, cacheMac,
+                true, TpPort.tpPort(mbox.getPort()))) {
+            log.error("programProxyPath(): Unable to create path from proxy to cache");
+        return false;
+        }
+
         log.debug("Proxy paths created successfully");
 
         return true;
@@ -534,6 +536,15 @@ true, cacheMac,
 
         IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
 
+        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
+                true, icnPort, null, null, null,
+                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
+                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
+                true, icnAddress, false, null, true, TpPort.tpPort(icnPort),
+                false, null, false, null, false, null)) {
+            log.error("createPrefetchingPath: Unable to create path between cache and proxy");
+            return false;
+        }
 
         if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
                 true, icnPort, null, null, null,
@@ -545,15 +556,6 @@ true, cacheMac,
             return false;
         }
 
-        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
-                true, icnPort, null, null, null,
-                new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
-                new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
-                true, icnAddress, false, null, true, TpPort.tpPort(icnPort),
-                false, null, false, null, false, null)) {
-            log.error("createPrefetchingPath: Unable to create path between cache and proxy");
-            return false;
-        }
 
         return false;
     }
@@ -893,14 +895,6 @@ true, cacheMac,
             ConnectPoint destinationConnectPoint = new ConnectPoint(outdeviceId, outport);
             log.debug("Packet Processor creating paths");
             // Create path from host to proxy
-            boolean toproxy = createPath("pprocess" + serviceId, PROXYPATH_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
-                    ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
-                    false, (short)0,true, UtilIcn.HTTP_PORT,
-                    ethPkt, ipv4Pkt, tcpPkt,
-                    sourceConnectPoint, destinationConnectPoint, false,
-                    null, false, null, false, null,
-                    true, outaddress, true, outl2address, true, TpPort.tpPort(proxy.getPort()));
-            log.info("Path created toproxy {}", toproxy);
             // Create return intent
             boolean fromproxy = createPath("pprocess" + serviceId, PROXYPATH_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
                     outaddress.getIp4Address().toInt(), ipv4Pkt.getSourceAddress(),
@@ -909,8 +903,16 @@ true, cacheMac,
                     destinationConnectPoint, sourceConnectPoint, true,
                     dstAddr, false, dstl2Addr, true, TpPort.tpPort(UtilIcn.HTTP_PORT),
                     false, null, false, null, false, null);
-            serviceId++;
             log.info("Path created fromproxy {}", fromproxy);
+            boolean toproxy = createPath("pprocess" + serviceId, PROXYPATH_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
+                    ipv4Pkt.getSourceAddress(), ipv4Pkt.getDestinationAddress(),
+                    false, (short)0,true, UtilIcn.HTTP_PORT,
+                    ethPkt, ipv4Pkt, tcpPkt,
+                    sourceConnectPoint, destinationConnectPoint, false,
+                    null, false, null, false, null,
+                    true, outaddress, true, outl2address, true, TpPort.tpPort(proxy.getPort()));
+            log.info("Path created toproxy {}", toproxy);
+            serviceId++;
             // Take care of actual package
             TrafficTreatment treatment = DefaultTrafficTreatment.builder()
                     .setOutput(outport)
