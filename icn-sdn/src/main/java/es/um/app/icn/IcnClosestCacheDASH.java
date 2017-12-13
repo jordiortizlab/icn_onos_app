@@ -126,7 +126,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             return true;
         }).forEach(x -> {
             ResourceHTTPDASH r = (ResourceHTTPDASH) x;
-            RepresentationDASH representationDASH = r.representation4URL(x);
+            RepresentationDASH representationDASH = r.representation4URL(resourceHTTP);
             if (representationDASH != null) {
                 // prefetch Representation
                 pool.execute(new RepresentationPrefecther(serviceId, representationDASH, proxy, r));
