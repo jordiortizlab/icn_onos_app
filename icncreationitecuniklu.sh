@@ -33,4 +33,4 @@ echo ""
 
 #echo "Put devices info"
 #/DEVEL/SDN/ONOS/onos/tools/package/runtime/bin/onos-netcfg 10.7.0.4 scenario.json
-curl -sSL --user karaf:karaf -X POST -H 'Content-Type:application/json'  http://$CONTROLLER/onos/v1/network/configuration/ -d@$scenario.json
+curl -sSL --user karaf:karaf -X POST -H 'Content-Type:application/json' -d@scenario.json  http://$CONTROLLER/onos/v1/network/configuration/
