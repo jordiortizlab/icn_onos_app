@@ -214,11 +214,13 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 NodeList baseURL = doc.getElementsByTagName("BaseURL");
                 if (baseURL.getLength() == 0)
                     log.error("Unable to recover BaseURL from MPD");
+                String baseURLStr = baseURL.item(0).getFirstChild().getNodeValue();
 
                 NodeList representation = doc.getElementsByTagName("Representation");
                 for (int i = 0; i < representation.getLength(); i++) {
                     Node item = representation.item(i);
                     RepresentationDASH representationDASH = parseRepresentation(item);
+                    representationDASH.setBaseURL(baseURLStr);
                     resource.putRepresentation(representationDASH.id, representationDASH);
                 }
             } catch (ParserConfigurationException e) {
