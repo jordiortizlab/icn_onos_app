@@ -557,8 +557,7 @@ true, cacheMac,
             return false;
         }
 
-
-        return false;
+        return true;
     }
 
     private IcnFlow reverseFlow(IcnFlow flow) {
