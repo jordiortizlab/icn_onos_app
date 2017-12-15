@@ -287,8 +287,8 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                     c = findCacheForNewResource(icnservice, url, DeviceId.deviceId(proxy.getLocation().getDpid()),
                             PortNumber.portNumber(proxy.getLocation().getPort()));
                 } else {
-                    c = findCacheForExistingResource(icnservice, url, DeviceId.deviceId(proxy.getLocation().getDpid()),
-                            PortNumber.portNumber(proxy.getLocation().getPort()));
+                    log.debug("Content was cached, no need to precache");
+                    return;
                 }
 
                 // Generate a new icn
