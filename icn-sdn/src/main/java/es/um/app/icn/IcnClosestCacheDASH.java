@@ -248,7 +248,9 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
         public void postHTTP(String uri, String icnAddress, short icnPort, short cachePort) {
             try {
-                URL url = new URL("http://" + proxy.getIpaddr()+":" + proxy.getPrefetch_port() + "/prefetch");
+                log.debug("Prefetch postHTTP {} {} {}", uri, icnAddress, icnPort);
+                URL url = new URL("http://10.7.0.18:" + proxy.getPrefetch_port() + "/prefetch");
+                log.debug("Connecting... {}", url);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.connect();
 
