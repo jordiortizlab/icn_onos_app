@@ -535,24 +535,29 @@ true, cacheMac,
         int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
         MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
 
-        IpAddress ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
+        Ip4Address ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
 
-        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
-                true, icnPort, null, null, null,
+
+        if(!createPath(service, 300, appId, pathService, flowObjectiveService,
+                ipcacheprefix.toInt(), proxyprefix,
+                true, (short)mbox.getPort(), true, icnPort,
+                null, null, null,
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
-                true, icnAddress, false, null, true, TpPort.tpPort(icnPort),
+                true, icnAddress, false, null, false, TpPort.tpPort(icnPort),
                 false, null, false, null, false, null)) {
             log.error("createPrefetchingPath: Unable to create path between cache and proxy");
             return false;
         }
 
-        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService, proxyprefix, icnAddress.toInt(), false, (short)0,
-                true, icnPort, null, null, null,
+        if(!createPath(service, 300, appId, pathService, flowObjectiveService,
+                proxyprefix, icnAddress.toInt(),
+                true, icnPort, false, (short) 0,
+                null, null, null,
                 new ConnectPoint(DeviceId.deviceId(origin.getDpid()), PortNumber.portNumber(origin.getPort())),
                 new ConnectPoint(DeviceId.deviceId(mbox.getLocation().getDpid()), PortNumber.portNumber(mbox.getLocation().getPort())),
                 false, null, false, null, false, null,
-                true, ipcacheprefix, true, cacheMac, true, TpPort.tpPort(3128))) {
+                true, ipcacheprefix, true, cacheMac, false, TpPort.tpPort(mbox.getPort()))) {
             log.error("createPrefetchingPath: Unable to create path between proxy and cache");
             return false;
         }
