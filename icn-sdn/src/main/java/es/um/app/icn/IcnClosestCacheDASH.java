@@ -248,9 +248,8 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             this.res = r;
         }
 
-        public void postHTTP(String uri) {
+        public void postHTTP(String uri, String icnAddress, short icnPort, short cachePort) {
             try {
-                //TODO: Port of the prefetcher should be configurable
                 URL url = new URL("http://" + proxy.getIpaddr()+":" + proxy.getPrefetch_port() + "/prefetch");
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.connect();
@@ -261,12 +260,15 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 ObjectMapper objectMapper = new ObjectMapper();
                 ObjectNode paramurl = objectMapper.createObjectNode();
                 paramurl.put("url", uri);
-                paramurl.put("server", proxy.getIpaddr());
-                paramurl.put("port", PREFETCHER_PORT);
-
+                paramurl.put("server", icnAddress);
+                paramurl.put("port", icnPort);
+                paramurl.put("cacheport", cachePort);
+                connection.setRequestProperty("Content-Length", Integer.valueOf(paramurl.toString().getBytes().length).toString());
+                log.debug("Sending prefetch request to {} with {}", url, paramurl.toString());
                 try( DataOutputStream wr = new DataOutputStream( connection.getOutputStream())) {
-                    wr.write( paramurl.toString().getBytes() );
+                    wr.writeBytes( paramurl.toString() );
                 }
+                int responseCode = connection.getResponseCode();
 
 
             } catch (MalformedURLException e) {
@@ -293,7 +295,8 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
                 // Generate a new icn
                 generateNewPrefetchingIpandPort();
-                Ip4Address icnAddress = Ip4Address.valueOf(getPrefetchingIpStr());
+                String icnAddressStr = getPrefetchingIpStr();
+                Ip4Address icnAddress = Ip4Address.valueOf(icnAddressStr);
                 short icnPort = getPrefetchingPort();
                 if(!icnservice.createPrefetchingPath("prefetch" + serviceId, proxy, proxy.location, c, icnAddress, icnPort)){
                     log.error("Unable to create prefetching path. Aborting\n {} {} {} {} {}",
@@ -301,7 +304,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                     return;
                 }
                 serviceId++;
-                postHTTP(url);
+                postHTTP(url, icnAddressStr, icnPort, (short)c.getPort());
             });
         }
     }
