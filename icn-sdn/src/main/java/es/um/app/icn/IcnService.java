@@ -530,6 +530,7 @@ true, cacheMac,
 
     @Override
     public boolean createPrefetchingPath(String service, IMiddlebox proxy, Location origin, IMiddlebox mbox, Ip4Address icnAddress, short icnPort) {
+        log.debug("Create Prefetching path {} {} {} {} {} {}", service, proxy, origin, mbox, icnAddress, icnPort);
         int proxyprefix = Ip4Address.valueOf(proxy.getIpaddr()).toInt();
         int cacheprefix = Ip4Address.valueOf(mbox.getIpaddr()).toInt();
         MacAddress cacheMac = MacAddress.valueOf(mbox.getMacaddr());
