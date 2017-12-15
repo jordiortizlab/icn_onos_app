@@ -252,10 +252,11 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 URL url = new URL("http://10.7.0.18:" + proxy.getPrefetch_port() + "/prefetch");
                 log.debug("Connecting... {}", url);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                connection.connect();
 
                 connection.setDoOutput(true);
                 connection.setRequestMethod("POST");
+                connection.setRequestProperty("Content-Type", "application/json");
+
 
                 ObjectMapper objectMapper = new ObjectMapper();
                 ObjectNode paramurl = objectMapper.createObjectNode();
