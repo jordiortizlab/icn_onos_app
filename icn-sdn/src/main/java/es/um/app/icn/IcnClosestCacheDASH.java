@@ -39,10 +39,8 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -298,9 +296,9 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 String icnAddressStr = getPrefetchingIpStr();
                 Ip4Address icnAddress = Ip4Address.valueOf(icnAddressStr);
                 short icnPort = getPrefetchingPort();
-                if(!icnservice.createPrefetchingPath("prefetch" + serviceId, proxy, proxy.location, c, icnAddress, icnPort)){
+                if (!icnservice.createPrefetchingPath("prefetch" + serviceId, proxy, proxy.location, c, icnAddress, icnPort)) {
                     log.error("Unable to create prefetching path. Aborting\n {} {} {} {} {}",
-                            proxy, proxy.location, c, icnAddress, icnPort);
+                            proxy, proxy.location, c, icnAddressStr, icnPort);
                     return;
                 }
                 serviceId++;
