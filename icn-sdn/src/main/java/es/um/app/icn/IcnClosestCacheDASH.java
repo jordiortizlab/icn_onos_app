@@ -258,7 +258,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             this.caller = caller;
         }
 
-        public void postHTTP(String uri, String icnAddress, short icnPort, short cachePort) {
+        public boolean postHTTP(String uri, String icnAddress, short icnPort, short cachePort) {
             try {
                 log.debug("Prefetch postHTTP {} {} {}", uri, icnAddress, icnPort);
                 URL url = new URL("http://10.7.0.18:" + proxy.getPrefetch_port() + "/prefetch");
@@ -283,14 +283,16 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 }
                 int responseCode = connection.getResponseCode();
 
-
             } catch (MalformedURLException e) {
                 log.error("Malformed URL: {}", uri);
                 e.printStackTrace();
+                return false;
             } catch (IOException e) {
                 log.error("Impossible to connect {}", uri);
                 e.printStackTrace();
+                return false;
             }
+            return true;
         }
 
         @Override
