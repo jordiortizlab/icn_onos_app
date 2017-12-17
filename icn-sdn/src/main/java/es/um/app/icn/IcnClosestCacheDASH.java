@@ -127,7 +127,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             RepresentationDASH representationDASH = r.representation4URL(resourceHTTP);
             if (representationDASH != null) {
                 // prefetch Representation
-                pool.execute(new RepresentationPrefecther(serviceId, representationDASH, proxy, r));
+                pool.execute(new RepresentationPrefecther(this, serviceId, representationDASH, proxy, r));
             }
             serviceId += representationDASH.getFullUrls().size() + 1L;
         });
@@ -248,12 +248,14 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
         RepresentationDASH rep;
         Proxy proxy;
         ResourceHTTPDASH res;
+        IcnClosestCacheDASH caller;
 
-        public RepresentationPrefecther(long serviceId, RepresentationDASH rep, Proxy p, ResourceHTTPDASH r) {
+        public RepresentationPrefecther(IcnClosestCacheDASH caller, long serviceId, RepresentationDASH rep, Proxy p, ResourceHTTPDASH r) {
             this.serviceId = serviceId;
             this.rep = rep;
             this.proxy = p;
             this.res = r;
+            this.caller = caller;
         }
 
         public void postHTTP(String uri, String icnAddress, short icnPort, short cachePort) {
