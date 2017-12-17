@@ -539,7 +539,7 @@ true, cacheMac,
         Ip4Address ipcacheprefix = Ip4Address.valueOf(mbox.getIpaddr());
 
 
-        if(!createPath(service, 300, appId, pathService, flowObjectiveService,
+        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
                 ipcacheprefix.toInt(), proxyprefix,
                 true, (short)mbox.getPort(), true, icnPort,
                 null, null, null,
@@ -551,7 +551,7 @@ true, cacheMac,
             return false;
         }
 
-        if(!createPath(service, 300, appId, pathService, flowObjectiveService,
+        if(!createPath(service, DEFAULT_FLOW_TIMEOUT, appId, pathService, flowObjectiveService,
                 proxyprefix, icnAddress.toInt(),
                 true, icnPort, false, (short) 0,
                 null, null, null,
