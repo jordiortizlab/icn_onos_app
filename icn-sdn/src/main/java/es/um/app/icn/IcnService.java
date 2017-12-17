@@ -22,6 +22,7 @@ package es.um.app.icn;
 
 import java.nio.ByteBuffer;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.felix.scr.annotations.*;
 import org.onlab.packet.*;
@@ -107,7 +108,7 @@ public class IcnService implements
     /** We need to register with the provider to receive OF messages */
     protected HashMap<String, Icn> icns;
     protected HashMap<String, Proxy> proxies;
-    protected HashMap<PathIndex, InternalIcnFlow> flows;
+    protected ConcurrentHashMap<PathIndex, InternalIcnFlow> flows;
 
     private IcnPacketProcessor icnPacketProcessor = new IcnPacketProcessor();
     private InternalFlowListener flowListener = new InternalFlowListener();
@@ -121,7 +122,7 @@ public class IcnService implements
         // Initialize our data structures
         icns = new HashMap<String, Icn>();
         proxies = new HashMap<String, Proxy>();
-        flows  = new HashMap<>();
+        flows  = new ConcurrentHashMap<>();
         // Install Processor
         packetService.addProcessor(icnPacketProcessor, PacketProcessor.director(PROCESSOR_PRIORITY));
 
