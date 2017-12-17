@@ -46,6 +46,9 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -133,6 +136,11 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
         });
 
         return super.createResource(resourceDASH == null ? resourceHTTP : resourceDASH);
+    }
+
+    public boolean addPrefetchedResource(ResourceHTTP res) {
+        this.resources.put(res.getName(), res);
+        return true;
     }
 
     class MPDParser implements Runnable {
@@ -297,30 +305,70 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
         @Override
         public void run() {
-            rep.getFullUrls().parallelStream().forEach(url -> {
-                ResourceHTTP resourceHTTP = retrieveResource(url);
-                Cache c = null;
-                if (resourceHTTP == null) {
-                    c = findCacheForNewResource(icnservice, url, DeviceId.deviceId(proxy.getLocation().getDpid()),
-                            PortNumber.portNumber(proxy.getLocation().getPort()));
-                } else {
-                    log.debug("Content was cached, no need to precache");
-                    return;
-                }
 
-                // Generate a new icn
-                generateNewPrefetchingIpandPort();
-                String icnAddressStr = getPrefetchingIpStr();
-                Ip4Address icnAddress = Ip4Address.valueOf(icnAddressStr);
-                short icnPort = getPrefetchingPort();
-                if (!icnservice.createPrefetchingPath("prefetch" + serviceId, proxy, proxy.location, c, icnAddress, icnPort)) {
-                    log.error("Unable to create prefetching path. Aborting\n {} {} {} {} {}",
-                            proxy, proxy.location, c, icnAddressStr, icnPort);
-                    return;
-                }
-                serviceId++;
-                postHTTP(url, icnAddressStr, icnPort, (short)c.getPort());
-            });
+            LinkedList<String> fullUrls = rep.getFullUrls();
+            log.info("Prefetching id {} with {} chunks", rep.getId(), fullUrls.size());
+            for (Integer id : rep.getDependencies()) {
+                log.info("Prefetching dependant id: {}", id);
+                RepresentationDASH representationDASH = res.getRepresentation(id);
+                fullUrls.addAll(representationDASH.getFullUrls());
+            }
+            log.info("Total chunks {}", fullUrls.size());
+            // fullUrls contains all the urls for all the dependencies, now sort it first by length and after alphabetically
+            fullUrls.sort(new LengthFirstComparator());
+
+            int dependenciessize = rep.getDependencies().size() + 1; // The dependencies plus the actual
+            for (int idx = 0; idx < fullUrls.size(); idx += dependenciessize + 1) {
+                List<String> urlssubset = fullUrls.subList(idx, idx + dependenciessize);
+                log.info("Downloading from {} to  {} : {}", idx, idx + dependenciessize, urlssubset);
+
+                urlssubset.parallelStream().forEach(url -> {
+                    ResourceHTTP resourceHTTP = retrieveResource(url);
+                    Cache c = null;
+                    if (resourceHTTP == null) {
+                        c = findCacheForNewResource(icnservice, url, DeviceId.deviceId(proxy.getLocation().getDpid()),
+                                PortNumber.portNumber(proxy.getLocation().getPort()));
+                    } else {
+                        log.debug("Content was cached, no need to precache");
+                        return;
+                    }
+
+                    // Generate a new icn
+                    generateNewPrefetchingIpandPort();
+                    String icnAddressStr = getPrefetchingIpStr();
+                    Ip4Address icnAddress = Ip4Address.valueOf(icnAddressStr);
+                    short icnPort = getPrefetchingPort();
+                    if (!icnservice.createPrefetchingPath("prefetch" + serviceId, proxy, proxy.location, c, icnAddress, icnPort)) {
+                        log.error("Unable to create prefetching path. Aborting\n {} {} {} {} {}",
+                                proxy, proxy.location, c, icnAddressStr, icnPort);
+                        return;
+                    }
+                    serviceId++;
+                    boolean posted = false;
+                    while (!posted) {
+                        if (postHTTP(url, icnAddressStr, icnPort, (short) c.getPort())) {
+                            //Insert Resource
+                            ResourceHTTP res = new ResourceHTTP(UtilIcn.resourceId(caller.getName(), url), url);
+                            res.setRequests(1);
+                            res.addCache(c);
+                            res.setFullurl(url);
+                            caller.addPrefetchedResource(res);
+                            posted = true;
+                        }
+                    }
+                });
+            }
         }
+
+        public class LengthFirstComparator implements Comparator<String> {
+            @Override
+            public int compare(String o1, String o2) {
+                if (o1.length()!=o2.length()) {
+                    return o1.length()-o2.length(); //overflow impossible since lengths are non-negative
+                }
+                return o1.compareTo(o2);
+            }
+        }
+
     }
 }
