@@ -22,6 +22,7 @@ package es.um.app.icn;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.PortNumber;
@@ -32,7 +33,7 @@ public class IcnClosestCache implements Icn {
     protected String description;
     protected HashMap<String, Provider> providers;
     protected HashMap<String, Cache> caches;
-    protected HashMap<String, ResourceHTTP> resources;
+    protected ConcurrentHashMap<String, ResourceHTTP> resources;
     protected IcnService icnservice;
 
     static public final String DESCRIPTION = "CLOSEST";
@@ -40,7 +41,7 @@ public class IcnClosestCache implements Icn {
     public IcnClosestCache() {
         providers = new HashMap<String, Provider>();
         caches = new HashMap<String, Cache>();
-        resources = new HashMap<String, ResourceHTTP>();
+        resources = new ConcurrentHashMap<String, ResourceHTTP>();
     }
 
     /**
