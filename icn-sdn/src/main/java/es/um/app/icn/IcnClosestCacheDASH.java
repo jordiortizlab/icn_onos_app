@@ -151,7 +151,8 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             int frameRate = 0;
             long bandwidth = 0L;
             String codec = "";
-            String mimetype = "";
+            String dependencyId = "";
+            String mimetype = null;
 
             NamedNodeMap attributes = item.getAttributes();
             id = Integer.parseInt(attributes.getNamedItem("id").getNodeValue());
@@ -162,6 +163,15 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             codec = attributes.getNamedItem("codecs").getNodeValue();
 
             RepresentationDASH r = new RepresentationDASH(id, width, height, frameRate, bandwidth, codec, mimetype);
+
+            if (attributes.getNamedItem("dependencyId") != null) {
+                dependencyId = attributes.getNamedItem("dependencyId").getNodeValue();
+                String[] split = dependencyId.split(" ");
+                for (String did : split) {
+                    r.setDependency(Integer.parseInt(did));
+                }
+            }
+
             NodeList childNodes = item.getChildNodes();
             for (int idx = 0; idx < childNodes.getLength(); idx++) {
                 Node child = childNodes.item(idx);
