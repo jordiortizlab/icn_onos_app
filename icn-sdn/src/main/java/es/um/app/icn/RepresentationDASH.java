@@ -16,7 +16,7 @@ public class RepresentationDASH {
     String codec;
     String mimeType;
     String baseURL;
-    HashMap<Integer, RepresentationDASH> dependencies;
+    LinkedList<Integer> dependencies;
     LinkedList<String> urls;
 
     public RepresentationDASH(int id, int width, int height, int frameRate, long bandwidth, String codec, String mimeType) {
@@ -27,7 +27,7 @@ public class RepresentationDASH {
         this.bandwidth = bandwidth;
         this.codec = codec;
         this.mimeType = mimeType;
-        dependencies = new HashMap<>();
+        dependencies = new LinkedList<Integer>();
         urls = new LinkedList<>();
     }
 
@@ -59,7 +59,7 @@ public class RepresentationDASH {
         return mimeType;
     }
 
-    public HashMap<Integer, RepresentationDASH> getDependencies() {
+    public LinkedList<Integer> getDependencies() {
         return dependencies;
     }
 
@@ -95,9 +95,9 @@ public class RepresentationDASH {
         }
     }
 
-    public void setDependencie(Integer dep, RepresentationDASH r) {
-        if (!dependencies.containsKey(dep)) {
-            dependencies.put(dep, r);
+    public void setDependency(Integer dep) {
+        if (!dependencies.contains(dep)) {
+            dependencies.add(dep);
         }
     }
 
