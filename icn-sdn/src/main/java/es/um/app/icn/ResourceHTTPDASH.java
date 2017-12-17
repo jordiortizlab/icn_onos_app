@@ -31,6 +31,10 @@ public class ResourceHTTPDASH extends ResourceHTTP {
         return null;
     }
 
+    public RepresentationDASH getRepresentation(Integer id) {
+        return representations.get(id);
+    }
+
     @Override
     public String getType() {
         return DESCRIPTION;
