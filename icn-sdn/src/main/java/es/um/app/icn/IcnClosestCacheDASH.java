@@ -61,7 +61,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
     static private final Long MIN_PREFETCHING_IP = 2886729729L; //172.16.0.1
     static private final Long MAX_PREFETCHING_IP = 2887778303L; //172.31.255.255
     static private final short MIN_PREFETCHING_PORT = 1025;
-    static private final short MAX_PREFETCHING_PORT = Short.MAX_VALUE;
+    static private final short MAX_PREFETCHING_PORT = 31999;
     private final ExecutorService pool;
 
     private long prefetching_ip = MIN_PREFETCHING_IP;
