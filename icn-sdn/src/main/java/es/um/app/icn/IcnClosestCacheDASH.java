@@ -23,6 +23,7 @@ package es.um.app.icn;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import javafx.util.Pair;
 import org.onlab.packet.Ip4Address;
 import org.onosproject.net.DeviceId;
 import org.onosproject.net.PortNumber;
@@ -78,7 +79,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
      * Advances first the port until the limit. Then the ip until the limit and rotates.
      * @return
      */
-    private void generateNewPrefetchingIpandPort() {
+    private synchronized Pair<Long, Short> generateNewPrefetchingIpandPort() {
         prefetching_port++;
         if (prefetching_port == MAX_PREFETCHING_PORT) {
             prefetching_port = MIN_PREFETCHING_PORT;
@@ -86,6 +87,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             if (prefetching_ip == MAX_PREFETCHING_IP)
                 prefetching_ip = MIN_PREFETCHING_IP;
         }
+        return new Pair<>(prefetching_ip, prefetching_port);
     }
 
     private Long getPrefetchingIp() {
@@ -96,11 +98,11 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
         return prefetching_port;
     }
 
-    private String getPrefetchingIpStr() {
-            return ((prefetching_ip >> 24) & 0xFF) + "."
-                    + ((prefetching_ip >> 16) & 0xFF) + "."
-                    + ((prefetching_ip >> 8) & 0xFF) + "."
-                    + (prefetching_ip & 0xFF);
+    private String Ip2Str(Long ip) {
+            return ((ip >> 24) & 0xFF) + "."
+                    + ((ip >> 16) & 0xFF) + "."
+                    + ((ip >> 8) & 0xFF) + "."
+                    + (ip & 0xFF);
 
     }
 
@@ -334,10 +336,10 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                     }
 
                     // Generate a new icn
-                    generateNewPrefetchingIpandPort();
-                    String icnAddressStr = getPrefetchingIpStr();
+                    Pair<Long, Short> prefetchipandportpair = generateNewPrefetchingIpandPort();
+                    String icnAddressStr = Ip2Str(prefetchipandportpair.getKey());
                     Ip4Address icnAddress = Ip4Address.valueOf(icnAddressStr);
-                    short icnPort = getPrefetchingPort();
+                    short icnPort = prefetchipandportpair.getValue();
                     if (!icnservice.createPrefetchingPath("prefetch" + serviceId, proxy, proxy.location, c, icnAddress, icnPort)) {
                         log.error("Unable to create prefetching path. Aborting\n {} {} {} {} {}",
                                 proxy, proxy.location, c, icnAddressStr, icnPort);
