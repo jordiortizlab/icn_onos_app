@@ -202,6 +202,18 @@ public class IcnService implements
             log.error("Source = Destination {}", source);
             return false;
         }
+
+        log.info("createPath {}({}) -> {}({}) | rwsrc {} rwdst {}",
+                source, Ip4Address.valueOf(matchIpsrc).toString() + ":" + ((matchPortSrc) ? srcport : "any"),
+                destination, Ip4Address.valueOf(matchIpDst).toString() + ":" + ((matchPortDst) ? dstport : "any"),
+                ((rewriteSourceIP) ? rwsourceAddr.toString() : "noip") + " " +
+                        ((rewriteSourcePort) ? rwsourceport : "noport") + " " +
+                        ((rewriteSourceMAC) ? rwsourcel2Addr.toString() : "nomac") + " ",
+                        ((rewriteDestinationIP) ? rwdestinationAddr.toString() : "noip") + " " +
+                        ((rewriteDestinationPort) ? rwdestport : "noport") + " " +
+                        ((rewriteDestinationMAC) ? rwdestinationl2Addr.toString() : "nomac") + " "
+        );
+
         log.debug("Creating path matchIpSrc {} matchIpDst {} matchPortSrc {}:{} matchPorDst {}:{} source {} destination {} ",
                 matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, source, destination);
         log.debug("rewriteSource {} {} {}", rewriteSourceIP, rwsourceAddr, rwsourcel2Addr);
@@ -230,9 +242,14 @@ public class IcnService implements
             }
 
 
-            Iterator<Path> iterator = paths.iterator();
-            if (iterator.hasNext()) {
-                Path path = iterator.next(); // Get one path
+            Optional<Path> first = paths.stream().findFirst();
+            if (first.isPresent()) {
+                Path path = first.get();
+                String linkstr = "";
+                for (Link link : path.links()) {
+                    linkstr += link + " - ";
+                }
+                log.info("Using path: " + linkstr);
                 for (Link link : path.links()) {
                     PathIndex idx = new PathIndex(service, link.src().deviceId(), appId, matchIpsrc, matchIpDst, matchPortSrc, srcport, matchPortDst, dstport, ethIn, ipIn, tcpIn,
                             source, destination,
@@ -271,9 +288,9 @@ public class IcnService implements
                     flows.put(idx, icnflow);
                     sourceport = link.dst().port();
                 }
+            } else {
+                log.debug("Direct connection, same switch");
             }
-        } else {
-            log.debug("Direct connection, same switch");
         }
         // Now we need to treat last jump
         if (source.deviceId().equals(destination.deviceId())) {
