@@ -18,6 +18,7 @@ public class RepresentationDASH {
     String baseURL;
     LinkedList<Integer> dependencies;
     LinkedList<String> urls;
+    boolean prefetched;
 
     public RepresentationDASH(int id, int width, int height, int frameRate, long bandwidth, String codec, String mimeType) {
         this.id = id;
@@ -29,6 +30,7 @@ public class RepresentationDASH {
         this.mimeType = mimeType;
         dependencies = new LinkedList<Integer>();
         urls = new LinkedList<>();
+        prefetched = false;
     }
 
     public int getId() {
@@ -70,6 +72,14 @@ public class RepresentationDASH {
 
     public void setBaseURL(String baseURL) {
         this.baseURL = baseURL;
+    }
+
+    public boolean isPrefetched() {
+        return prefetched;
+    }
+
+    public void setPrefetched(boolean prefetched) {
+        this.prefetched = prefetched;
     }
 
     public LinkedList<String> getFullUrls() {

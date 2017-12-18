@@ -130,9 +130,10 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
         }).forEach(x -> {
             ResourceHTTPDASH r = (ResourceHTTPDASH) x;
             RepresentationDASH representationDASH = r.representation4URL(resourceHTTP);
-            if (representationDASH != null) {
-                // prefetch Representation
+            if (representationDASH != null && !representationDASH.isPrefetched()) {
+                // prefetch Representation if not prefetched already (Avoid two prefetches parallel for same resources)
                 pool.execute(new RepresentationPrefecther(this, serviceId, representationDASH, proxy, r));
+                representationDASH.setPrefetched(true);
             }
             serviceId += representationDASH.getFullUrls().size() + 1L;
         });
@@ -314,6 +315,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 log.info("Prefetching dependant id: {}", id);
                 RepresentationDASH representationDASH = res.getRepresentation(id);
                 fullUrls.addAll(representationDASH.getFullUrls());
+                representationDASH.setPrefetched(true);
             }
             log.info("Total chunks {}", fullUrls.size());
             // fullUrls contains all the urls for all the dependencies, now sort it first by length and after alphabetically
