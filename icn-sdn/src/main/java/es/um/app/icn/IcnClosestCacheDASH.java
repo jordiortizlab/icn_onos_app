@@ -256,6 +256,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                     Node item = representation.item(i);
                     RepresentationDASH representationDASH = parseRepresentation(item);
                     representationDASH.setBaseURL(baseURLStr);
+                    log.debug("Putting Representation: {}", representationDASH.id);
                     resource.putRepresentation(representationDASH.id, representationDASH);
                 }
             } catch (ParserConfigurationException e) {

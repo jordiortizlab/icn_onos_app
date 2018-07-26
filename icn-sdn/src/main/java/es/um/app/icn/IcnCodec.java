@@ -73,9 +73,11 @@ public class IcnCodec extends JsonCodec<Icn> {
         if (json.get(TYPE_FIELD) != null) {
             switch (json.get(TYPE_FIELD).asText()) {
                 case IcnClosestCache.DESCRIPTION:
+                    log.info("ICN Type {}", IcnClosestCache.DESCRIPTION);
                     icn = new IcnClosestCache();
                     break;
                 case IcnClosestCacheDASH.DESCRIPTION:
+                    log.info("ICN Type {}", IcnClosestCacheDASH.DESCRIPTION);
                     icn = new IcnClosestCacheDASH();
                     break;
                 default:
