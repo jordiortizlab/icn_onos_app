@@ -121,6 +121,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
     @Override
     public ResourceHTTP createResource(ResourceHTTP resourceHTTP, Proxy proxy) {
+        log.info("Create Resource {}", resourceHTTP);
         ResourceHTTPDASH resourceDASH = null;
         if (resourceHTTP.getFilename().endsWith(".mpd") || resourceHTTP.getFilename().endsWith("*.MPD")) {
             // It is an MPD. Let's download it and populate caches
@@ -145,10 +146,12 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
             RepresentationDASH representationDASH = r.representation4URL(resourceHTTP);
             if (representationDASH != null && !representationDASH.isPrefetched()) {
                 // prefetch Representation if not prefetched already (Avoid two prefetches parallel for same resources)
+                log.info("Prefetching chunks related to {}", resourceHTTP.getFullurl());
                 pool.execute(new RepresentationPrefecther(this, serviceId, representationDASH, proxy, r));
                 representationDASH.setPrefetched(true);
             }
-            serviceId += representationDASH.getFullUrls().size() + 1L;
+            if (representationDASH != null)
+                serviceId += representationDASH.getFullUrls().size() + 1L;
         });
 
         return super.createResource(resourceDASH == null ? resourceHTTP : resourceDASH);
