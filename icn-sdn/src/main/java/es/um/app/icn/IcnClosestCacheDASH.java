@@ -71,7 +71,7 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
     public IcnClosestCacheDASH() {
         super();
-        pool = Executors.newFixedThreadPool(1);
+        pool = Executors.newFixedThreadPool(16);
     }
 
     /**
