@@ -1,6 +1,7 @@
 package es.um.app.icn;
 
 import java.util.HashMap;
+import java.util.Optional;
 
 /**
  * Created by Jordi Ortiz on 30/10/17.
@@ -24,11 +25,10 @@ public class ResourceHTTPDASH extends ResourceHTTP {
     }
 
     public RepresentationDASH representation4URL(Resource res) {
-        for (RepresentationDASH rep: representations.values()) {
-            if (rep.containsResource(res.getFullurl()))
-                return rep;
-        }
-        return null;
+        Optional<RepresentationDASH> optionalRepresentationDASH = representations.values().parallelStream()
+                .filter(x -> x.containsResource(res.getFullurl()))
+                .findFirst();
+        return optionalRepresentationDASH.orElse(null);
     }
 
     public RepresentationDASH getRepresentation(Integer id) {
