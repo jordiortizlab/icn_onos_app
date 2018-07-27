@@ -1,6 +1,6 @@
 if [ $# -eq 0 ]
 then
-    export CONTROLLER='10.7.0.4:8181'
+    export CONTROLLER='192.168.100.10:8181'
 else
     export CONTROLLER=$1':8181'
 fi
