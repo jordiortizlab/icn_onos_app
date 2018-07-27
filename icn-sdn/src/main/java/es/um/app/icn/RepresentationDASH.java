@@ -18,7 +18,7 @@ public class RepresentationDASH {
     private String baseURL;
     private LinkedList<Integer> dependencies;
     private LinkedList<String> urls;
-    boolean prefetched;
+    private boolean prefetched;
 
     public RepresentationDASH(int id, int width, int height, int frameRate, long bandwidth, String codec, String mimeType) {
         this.id = id;
