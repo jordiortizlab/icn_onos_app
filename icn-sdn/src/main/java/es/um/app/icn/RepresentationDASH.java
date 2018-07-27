@@ -8,16 +8,16 @@ import java.util.Optional;
  * Created by Jordi Ortiz on 30/10/17.
  */
 public class RepresentationDASH {
-    int id;
-    int width;
-    int height;
-    int frameRate;
-    long bandwidth;
-    String codec;
-    String mimeType;
-    String baseURL;
-    LinkedList<Integer> dependencies;
-    LinkedList<String> urls;
+    private int id;
+    private int width;
+    private int height;
+    private int frameRate;
+    private long bandwidth;
+    private String codec;
+    private String mimeType;
+    private String baseURL;
+    private LinkedList<Integer> dependencies;
+    private LinkedList<String> urls;
     boolean prefetched;
 
     public RepresentationDASH(int id, int width, int height, int frameRate, long bandwidth, String codec, String mimeType) {
