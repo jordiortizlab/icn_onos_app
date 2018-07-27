@@ -84,7 +84,7 @@ public class RepresentationDASH {
 
     public LinkedList<String> getFullUrls() {
         LinkedList<String> fullurls = new LinkedList<>();
-        urls.stream().forEach(x -> fullurls.addLast(baseURL + x));
+        urls.parallelStream().forEach(x -> fullurls.addLast(baseURL + x));
         return fullurls;
     }
 
@@ -93,10 +93,7 @@ public class RepresentationDASH {
     }
 
     public boolean containsResource(String url) {
-        Optional<String> first = urls.stream().filter(x -> url.equals(baseURL + x)).findFirst();
-        if (first.isPresent())
-             return true;
-        return false;
+        return urls.stream().anyMatch(x -> url.equals(baseURL + x));
     }
 
     public void putResource(String url) {
