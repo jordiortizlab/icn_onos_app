@@ -19,7 +19,7 @@
 
     <groupId>es.um</groupId>
     <artifactId>icn-sdn</artifactId>
-    <version>1.3-SNAPSHOT</version>
+    <version>1.4-SNAPSHOT</version>
     <packaging>bundle</packaging>
 
     <description>ONOS OSGi bundle archetype</description>
