@@ -1,30 +1,19 @@
 #!/bin/bash
 
-# sshpass -p karaf ssh 10.7.0.4 -l karaf -p 8101 -t shutdown -c -cc -h -f
-# sleep 10
-# ssh sdn@10.7.0.4 -t sudo systemctl start onos
-# sleep 60
-#sshpass -p karaf ssh 10.7.0.4 -l karaf -p 8101 -t app deactivate es.um.icn
-# sshpass -p karaf ssh 10.7.0.4 -l karaf -p 8101 -t shutdown -c -cc -r -f
-# sleep 120
-#sshpass -p karaf ssh 10.7.0.4 -l karaf -p 8101 -t app activate es.um.icn
-#sleep 15
-# ssh 10.7.0.4 -t sudo docker stop onos_phd
-# ssh 10.7.0.4 -t sudo docker rm onos_phd
-# ssh 10.7.0.4 -t sudo docker run -d -i -e KARAF_DEBUG=true -e ONOS_APPS=openflow --name onos_phd -p 6633:6633 -p 8181:8181 -p 8101:8101 -p 5005:5005 -p 8080:8080 onosproject/onos:1.10.2
-ssh 10.7.0.4 -t sudo docker stop onos_phd
-sleep 10
-ssh 10.7.0.4 -t sudo docker run -d -i --rm -e KARAF_DEBUG=true -e ONOS_APPS=drivers.hp --name onos_phd -p 6633:6633 -p 8181:8181 -p 8101:8101 -p 5005:5005 -p 8080:8080 onosproject/onos:1.12.0
+ssh 192.168.100.10 -t sudo docker stop onos_phd
+sleep 20
+ssh 192.168.100.10 -t sudo docker run -d -i --rm -e KARAF_DEBUG=true -e ONOS_APPS=openflow --name onos_phd -p 6633:6633 -p 8181:8181 -p 8101:8101 -p 5005:5005 -p 8080:8080 -v /home/nenjordi/LOGS/:/root/onos/apache-karaf-3.0.8/data/log/ onosproject/onos:1.12.0
 
-nc -z 10.7.0.4 8101
+nc -z 192.168.100.10 8101
 while [ $? -ne 0 ]
 do
-    echo "Wainting for 10.7.0.4 to become available"
-    sleep 60
-    nc -z 10.7.0.4 8101
+    echo "Wainting for 192.168.100.10 to become available"
+    sleep 10
+    nc -z 192.168.100.10 8101
 done
 # install app
-curl -sS --user karaf:karaf --noproxy localhost -X POST -HContent-Type:application/octet-stream http://10.7.0.4:8181/onos/v1/applications?activate=true --data-binary @icn-sdn-1.3-SNAPSHOT.oar
+sleep 60
+curl -sS --user karaf:karaf --noproxy localhost -X POST -HContent-Type:application/octet-stream http://192.168.100.10:8181/onos/v1/applications?activate=true --data-binary @icn-sdn-1.3-SNAPSHOT.oar
 sleep 15
 bash /home/nenjordi/ICN/icn_onos_app/icncreationitecuniklu.sh
-
+./locatehosts.sh
