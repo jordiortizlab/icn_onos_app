@@ -1,8 +1,9 @@
 package es.um.app.icn;
 
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Optional;
+import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 /**
  * Created by Jordi Ortiz on 30/10/17.
@@ -16,8 +17,8 @@ public class RepresentationDASH {
     private String codec;
     private String mimeType;
     private String baseURL;
-    private LinkedList<Integer> dependencies;
-    private LinkedList<String> urls;
+    private ConcurrentLinkedQueue<Integer> dependencies;
+    private ConcurrentLinkedQueue<String> urls;
     private boolean prefetched;
 
     public RepresentationDASH(int id, int width, int height, int frameRate, long bandwidth, String codec, String mimeType) {
@@ -28,8 +29,8 @@ public class RepresentationDASH {
         this.bandwidth = bandwidth;
         this.codec = codec;
         this.mimeType = mimeType;
-        dependencies = new LinkedList<Integer>();
-        urls = new LinkedList<>();
+        dependencies = new ConcurrentLinkedQueue<>();
+        urls = new ConcurrentLinkedQueue<>();
         prefetched = false;
     }
 
@@ -61,8 +62,8 @@ public class RepresentationDASH {
         return mimeType;
     }
 
-    public LinkedList<Integer> getDependencies() {
-        return dependencies;
+    public List<Integer> getDependencies() {
+        return dependencies.stream().collect(Collectors.toList());
     }
 
 
@@ -88,8 +89,8 @@ public class RepresentationDASH {
         return fullurls;
     }
 
-    public LinkedList<String> getUrls() {
-        return urls;
+    public List<String> getUrls() {
+        return urls.stream().collect(Collectors.toList());
     }
 
     public boolean containsResource(String url) {
