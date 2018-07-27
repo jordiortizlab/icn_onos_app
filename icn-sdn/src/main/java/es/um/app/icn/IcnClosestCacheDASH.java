@@ -54,7 +54,7 @@ import java.util.concurrent.Executors;
 
 
 public class IcnClosestCacheDASH extends IcnClosestCache {
-    private final Logger log = LoggerFactory.getLogger(getClass());
+    private final static Logger log = LoggerFactory.getLogger(IcnClosestCacheDASH.class);
 
     static final String DESCRIPTION = "CLOSESTDASH";
     static private final int PREFETCHER_PORT = 8080;
