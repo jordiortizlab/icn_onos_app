@@ -7,8 +7,10 @@
       "of:000a1c98ec7fdac0": { "basic": { "name": "MATH" }}
   },
    "hosts": {
-       "00:17:95:BC:70:B1/None": { "basic": { "ips": [ "10.7.0.1" ],  "name": "CiscoRouter" }},
-       "02:EB:71:00:00:03/None": { "basic": { "ips": [ "10.7.0.51" ],  "name": "Client1@Saruman"}},
-       "02:EB:72:00:00:01/None": { "basic": { "ips": [ "10.7.0.101" ],  "name": "Proxy@Elrond"}}
+       "00:17:95:BC:70:B1/None": { "basic": { "ips": [ "10.207.10.1" ],  "name": "CiscoRouter" }},
+       "02:EB:71:00:00:03/None": { "basic": { "ips": [ "10.207.10.51" ],  "name": "Client1@Saruman"}},
+       "02:EB:71:00:00:04/None": { "basic": { "ips": [ "10.207.10.52" ],  "name": "Client2@Elrond"}},
+       "02:EB:73:00:00:01/None": { "basic": { "ips": [ "10.207.10.101" ],  "name": "Proxy@Elrond"}},
+       "02:EB:72:00:00:04/None": { "basic": { "ips": [ "10.207.10.102" ],  "name": "Cache@Aragorn"}}
    }
 }
