@@ -136,23 +136,27 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 log.error("Malformed URL: {}", resourceHTTP.getFullurl());
                 e.printStackTrace();
             }
+        } else {
+            // It is not an MPD, let's see if we can prefetch. See if the MPD has been already parsed
+            resources.values().parallelStream().filter(x -> {
+                if (!x.getType().equals(ResourceHTTPDASH.DESCRIPTION))
+                    return false;
+                ResourceHTTPDASH r = (ResourceHTTPDASH) x;
+                RepresentationDASH representationDASH = r.representation4URL(resourceHTTP);
+                return true;
+            }).findFirst().ifPresent(x -> {
+                ResourceHTTPDASH r = (ResourceHTTPDASH) x;
+                RepresentationDASH representationDASH = r.representation4URL(resourceHTTP);
+                if (representationDASH != null && !representationDASH.isPrefetched()) {
+                    // prefetch Representation if not prefetched already (Avoid two prefetches parallel for same resources)
+                    log.info("Prefetching chunks related to {}", resourceHTTP.getFullurl());
+                    pool.execute(new RepresentationPrefecther(this, serviceId, representationDASH, proxy, r));
+                    representationDASH.setPrefetched(true);
+                }
+                if (representationDASH != null)
+                    serviceId += representationDASH.getFullUrls().size() + 1L;
+            });
         }
-        resources.values().stream().filter(x -> {
-            if (!x.getType().equals(ResourceHTTPDASH.DESCRIPTION))
-                return false;
-            return true;
-        }).forEach(x -> {
-            ResourceHTTPDASH r = (ResourceHTTPDASH) x;
-            RepresentationDASH representationDASH = r.representation4URL(resourceHTTP);
-            if (representationDASH != null && !representationDASH.isPrefetched()) {
-                // prefetch Representation if not prefetched already (Avoid two prefetches parallel for same resources)
-                log.info("Prefetching chunks related to {}", resourceHTTP.getFullurl());
-                pool.execute(new RepresentationPrefecther(this, serviceId, representationDASH, proxy, r));
-                representationDASH.setPrefetched(true);
-            }
-            if (representationDASH != null)
-                serviceId += representationDASH.getFullUrls().size() + 1L;
-        });
 
         return super.createResource(resourceDASH == null ? resourceHTTP : resourceDASH);
     }
@@ -256,8 +260,8 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                     Node item = representation.item(i);
                     RepresentationDASH representationDASH = parseRepresentation(item);
                     representationDASH.setBaseURL(baseURLStr);
-                    log.debug("Putting Representation: {}", representationDASH.id);
-                    resource.putRepresentation(representationDASH.id, representationDASH);
+                    log.debug("Putting Representation: {}", representationDASH.getId());
+                    resource.putRepresentation(representationDASH.getId(), representationDASH);
                 }
             } catch (ParserConfigurationException e) {
                 log.error("MPD:: Impossible to configure XML Parser {}", e);
