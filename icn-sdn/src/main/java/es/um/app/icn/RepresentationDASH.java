@@ -1,6 +1,5 @@
 package es.um.app.icn;
 
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
