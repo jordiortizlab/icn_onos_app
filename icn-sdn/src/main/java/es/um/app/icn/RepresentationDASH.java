@@ -83,10 +83,10 @@ public class RepresentationDASH {
         this.prefetched = prefetched;
     }
 
-    public LinkedList<String> getFullUrls() {
-        LinkedList<String> fullurls = new LinkedList<>();
-        urls.parallelStream().forEach(x -> fullurls.addLast(baseURL + x));
-        return fullurls;
+    public List<String> getFullUrls() {
+        ConcurrentLinkedQueue<String> fullurls = new ConcurrentLinkedQueue<>();
+        urls.parallelStream().forEach(x -> fullurls.add(baseURL + x));
+        return fullurls.stream().collect(Collectors.toList());
     }
 
     public List<String> getUrls() {
