@@ -46,11 +46,14 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 
 public class IcnClosestCacheDASH extends IcnClosestCache {
@@ -330,25 +333,24 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
 
         @Override
         public void run() {
+            ConcurrentHashMap<Integer, List<String>> urls = new ConcurrentHashMap<>();
 
-            LinkedList<String> fullUrls = rep.getFullUrls();
-            log.info("Prefetching id {} with {} chunks", rep.getId(), fullUrls.size());
+            urls.put(rep.getId(), res.getRepresentation(rep.getId()).getFullUrls().stream().sorted(new LengthFirstComparator()).collect(Collectors.toList()));
+            log.info("Prefetching id {} with {} chunks", rep.getId(), urls.get(rep.getId()).size());
             for (Integer id : rep.getDependencies()) {
-                log.info("Prefetching dependant id: {}", id);
-                RepresentationDASH representationDASH = res.getRepresentation(id);
-                fullUrls.addAll(representationDASH.getFullUrls());
-                representationDASH.setPrefetched(true);
+                log.info("Prefetching dependant id: {} with {} chunks", id, res.getRepresentation(id).getFullUrls().size());
+                urls.put(id, res.getRepresentation(id).getFullUrls().stream().sorted(new LengthFirstComparator()).collect(Collectors.toList()));
+                res.getRepresentation(id).setPrefetched(true);
             }
-            log.info("Total chunks {}", fullUrls.size());
-            // fullUrls contains all the urls for all the dependencies, now sort it first by length and after alphabetically
-            fullUrls.sort(new LengthFirstComparator());
 
-            int dependenciessize = rep.getDependencies().size() + 1; // The dependencies plus the actual
-            for (int idx = 0; idx < fullUrls.size(); idx += dependenciessize + 1) {
-                List<String> urlssubset = fullUrls.subList(idx, idx + dependenciessize);
-                log.info("Downloading from {} to  {} : {}", idx, idx + dependenciessize, urlssubset);
-
-                urlssubset.parallelStream().forEach(url -> {
+            boolean finish = false;
+            while(!finish) {
+                Collections.list(urls.keys()).parallelStream().forEach(id -> {
+                    if (urls.get(id).size() == 0)
+                        return;
+                    String url = urls.get(id).get(0);
+                    urls.get(id).remove(0);
+                    log.debug("Prefetching Id: {} Url: {}", id, url);
                     ResourceHTTP resourceHTTP = retrieveResource(url);
                     Cache c = null;
                     if (resourceHTTP == null) {
@@ -370,19 +372,22 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                         return;
                     }
                     serviceId++;
-                    boolean posted = false;
-                    while (!posted) {
-                        if (postHTTP(url, icnAddressStr, icnPort, (short) c.getPort())) {
-                            //Insert Resource
-                            ResourceHTTP res = new ResourceHTTP(UtilIcn.resourceId(caller.getName(), url), url);
-                            res.setRequests(1);
-                            res.addCache(c);
-                            res.setFullurl(url);
-                            caller.addPrefetchedResource(res);
-                            posted = true;
-                        }
+                    if (postHTTP(url, icnAddressStr, icnPort, (short) c.getPort())) {
+                        //Insert Resource
+                        ResourceHTTP res = new ResourceHTTP(UtilIcn.resourceId(caller.getName(), url), url);
+                        res.setRequests(1);
+                        res.addCache(c);
+                        res.setFullurl(url);
+                        caller.addPrefetchedResource(res);
+                    } else {
+                        log.error("Unable to Send request to prefetcher for url {}", url);
                     }
                 });
+
+                // Check if there are urls pending
+                if (Collections.list(urls.keys()).parallelStream().noneMatch(id -> urls.get(id).size() != 0))
+                    finish = true;
+
             }
         }
 
