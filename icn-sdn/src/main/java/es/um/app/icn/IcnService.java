@@ -620,29 +620,35 @@ true, cacheMac,
         return null;
     }
 
+    private String getDeviceId4HostHelper(IMiddlebox m) {
+        String mboxDeviceId = "";
+        Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(m.getMacaddr()));
+        if (hostsByMac.isEmpty())
+            return mboxDeviceId;
+        if (hostsByMac.size() > 1)
+            log.warn("More than one host per mac, multiple links for same host? {}", m.getMacaddr());
+        for (Host host : hostsByMac) {
+            mboxDeviceId = host.location().deviceId().toString();
+        }
+        return mboxDeviceId;
+    }
+
     protected IMiddlebox findClosestMiddlebox(Collection<? extends IMiddlebox> middleboxes,
                                               DeviceId sw, PortNumber inPort) {
         IMiddlebox mbox = null;
         int minLen = Integer.MAX_VALUE;
+        Topology topology = topologyService.currentTopology();
 
         for (IMiddlebox m: middleboxes) {
             String mboxDeviceId = null;
             if (m.getLocation() == null) {
                 // There was no info in the config json about location. Try to find the host
-                Set<Host> hostsByMac = hostService.getHostsByMac(MacAddress.valueOf(m.getMacaddr()));
-                if (hostsByMac.isEmpty())
-                    continue;
-                if (hostsByMac.size() > 1)
-                    log.warn("More than one host per mac, multiple links for same host? {}", m.getMacaddr());
-                for (Host host : hostsByMac) {
-                    mboxDeviceId = host.location().deviceId().toString();
-                }
+                mboxDeviceId = getDeviceId4HostHelper(m);
             } else {
                 // Get info about middlebox location from config
                 mboxDeviceId = m.getLocation().dpid;
             }
 
-            Topology topology = topologyService.currentTopology();
             log.debug("Paths in topology: {}", topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId)));
 
             Set<Path> paths = topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId));
