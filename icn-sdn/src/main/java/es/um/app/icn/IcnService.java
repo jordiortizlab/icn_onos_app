@@ -669,6 +669,37 @@ true, cacheMac,
         return mbox;
     }
 
+    protected Map<IMiddlebox, Integer> getMiddleBoxesDistance(Collection<? extends IMiddlebox> middleboxes,
+                                                                      DeviceId sw) {
+        Topology topology = topologyService.currentTopology();
+        ConcurrentHashMap<IMiddlebox, Integer> resultpaths =  new ConcurrentHashMap<>();
+
+        for (IMiddlebox m: middleboxes) {
+            String mboxDeviceId = null;
+            if (m.getLocation() == null) {
+                // There was no info in the config json about location. Try to find the host
+                mboxDeviceId = getDeviceId4HostHelper(m);
+            } else {
+                // Get info about middlebox location from config
+                mboxDeviceId = m.getLocation().dpid;
+            }
+            log.debug("Paths in topology: {}", topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId)));
+
+            if (sw.toString().equals(mboxDeviceId)) {
+                resultpaths.put(m, 0);
+            } else {
+                Set<Path> paths = topologyService.getPaths(topology, sw, DeviceId.deviceId(mboxDeviceId));
+                Integer jumps = Integer.MAX_VALUE;
+                for (Path p : paths) {
+                    if (p.links().size() < jumps)
+                        jumps = p.links().size();
+                }
+                resultpaths.put(m, jumps);
+            }
+        }
+        return resultpaths;
+    }
+
     protected Cache findCache(String macaddr) {
         for (Icn icn : icns.values()) {
             for (Cache cache: icn.retrieveCaches()) {
