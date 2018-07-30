@@ -1,6 +1,7 @@
 #!/bin/bash
 
 ssh 192.168.100.10 -t sudo docker stop onos_phd
+ssh 192.168.100.10 -t sudo rm /home/nenjordi/LOGS/* # clean old log files from onos
 sleep 20
 ssh 192.168.100.10 -t sudo docker run -d -i --rm -e KARAF_DEBUG=true -e ONOS_APPS=openflow --name onos_phd -p 6633:6633 -p 8181:8181 -p 8101:8101 -p 5005:5005 -p 8080:8080 -v /home/nenjordi/LOGS/:/root/onos/apache-karaf-3.0.8/data/log/ onosproject/onos:1.12.0
 
