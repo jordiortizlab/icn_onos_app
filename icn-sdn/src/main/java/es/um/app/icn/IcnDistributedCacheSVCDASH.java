@@ -51,13 +51,12 @@ public class IcnDistributedCacheSVCDASH extends IcnClosestCacheDASH {
         int representationIdx = representationIds.indexOf(representationDASH.getId());
         log.debug("Request representation index {} of {}", representationIdx, representationCount);
         Double position = Math.floor(representationIdx / dependencycacheratio); // Previous integer
-
-
-        position.intValue();
-
-
-
-        return super.findCacheForNewResource(service, resourceName, sw, inPort);
+        log.debug("Position selected {}", position.intValue());
+        List<IMiddlebox> orderedcachelist = middleBoxesDistance.entrySet().stream().sorted(new IntegerValueComparator()).map(Map.Entry::getKey).collect(Collectors.toList());
+        log.debug("Cache list: {}", orderedcachelist.toString());
+        IMiddlebox iMiddlebox = orderedcachelist.get(position.intValue());
+        log.debug("Selected cache {}", iMiddlebox.getName());
+        return (Cache)iMiddlebox;
     }
 
     class IntegerValueComparator implements Comparator<Map.Entry<IMiddlebox, Integer>> {
