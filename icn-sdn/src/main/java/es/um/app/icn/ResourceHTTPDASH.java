@@ -1,7 +1,9 @@
 package es.um.app.icn;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Created by Jordi Ortiz on 30/10/17.
@@ -34,6 +36,10 @@ public class ResourceHTTPDASH extends ResourceHTTP {
     public RepresentationDASH getRepresentation(Integer id) {
         return representations.get(id);
     }
+
+    public Integer getRepresentationCount() {return representations.size();}
+
+    public List<Integer> getRepresentationIds() {return representations.keySet().stream().sorted().collect(Collectors.toList());}
 
     @Override
     public String getType() {

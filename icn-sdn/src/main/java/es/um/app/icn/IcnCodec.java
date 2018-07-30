@@ -80,6 +80,10 @@ public class IcnCodec extends JsonCodec<Icn> {
                     log.info("ICN Type {}", IcnClosestCacheDASH.DESCRIPTION);
                     icn = new IcnClosestCacheDASH();
                     break;
+                case IcnDistributedCacheSVCDASH.DESCRIPTION:
+                    log.info("ICN Type {}", IcnDistributedCacheSVCDASH.DESCRIPTION);
+                    icn = new IcnDistributedCacheSVCDASH();
+                    break;
                 default:
                     log.error("Unknown ICN Type: {}", json.get(TYPE_FIELD).asText());
                     return null;
