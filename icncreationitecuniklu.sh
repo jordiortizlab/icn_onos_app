@@ -11,15 +11,15 @@ curl -u karaf:karaf -X GET http://$CONTROLLER/onos/icn/proxies
 echo ""
 
 
-if [[ "$1" = "CLOSEST" ]]
+if [[ "$2" = "CLOSEST" ]]
 then
     echo "CLOSEST WITHOUT PREFETCH"
     curl -u karaf:karaf -X POST --data @data/icnunikluCLOSEST.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/icn\?name=uniklu
-elif [[ "$1" = "PREFETCH" ]]
+elif [[ "$2" = "PREFETCH" ]]
 then
     echo "PREFETCHING"
     curl -u karaf:karaf -X POST --data @data/icnunikluCLOSESTDASH.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/icn\?name=uniklu
-elif [[ "$1" = "DISTRIBUTED" ]]
+elif [[ "$2" = "DISTRIBUTED" ]]
 then
     echo "DISTRIBUTED SVC"
         curl -u karaf:karaf -X POST --data @data/icnunikluDISTRIBUTED.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/icn\?name=uniklu
