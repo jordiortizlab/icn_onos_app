@@ -17,21 +17,20 @@ public class IcnDistributedCacheSVCDASH extends IcnClosestCacheDASH {
     static final String DESCRIPTION = "DISTRIBUTEDSVCDASH";
 
     @Override
-    public Cache findCacheForNewResource(IcnService service, String resourceName, DeviceId sw, PortNumber inPort) {
-        ResourceHTTP resourceHTTP = resources.get(resourceName);
-        if (resourceHTTP == null)
-            return null;
+    public Cache findCacheForNewResource(IcnService service, String uri, DeviceId sw, PortNumber inPort) {
         Map<IMiddlebox, Integer> middleBoxesDistance = service.getMiddleBoxesDistance(caches.values(), sw);
         Stream<Map.Entry<IMiddlebox, Integer>> sorted = middleBoxesDistance.entrySet().stream().sorted(new IntegerValueComparator());
 
         // IF it is an MPD just use the nearest cache
-        if (resourceHTTP.getFilename().endsWith(".mpd") || resourceHTTP.getFilename().endsWith("*.MPD")) {
+        if (uri.endsWith(".mpd") || uri.endsWith("*.MPD")) {
             Map.Entry<IMiddlebox, Integer> iMiddleboxIntegerEntry = middleBoxesDistance.entrySet().stream().min(new IntegerValueComparator()).orElse(null);
             if (iMiddleboxIntegerEntry != null)
                 return (Cache)iMiddleboxIntegerEntry.getKey();
             return null;
         }
 
+        ResourceHTTP resourceHTTP = new ResourceHTTP();
+        resourceHTTP.setFullurl(uri);
         Optional<ResourceHTTP> resourceOpt = resources.values().parallelStream().filter(x -> {
             if (!x.getType().equals(ResourceHTTPDASH.DESCRIPTION))
                 return false;
