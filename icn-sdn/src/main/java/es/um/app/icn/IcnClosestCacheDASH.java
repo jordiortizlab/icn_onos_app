@@ -145,7 +145,9 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                     return false;
                 ResourceHTTPDASH r = (ResourceHTTPDASH) x;
                 RepresentationDASH representationDASH = r.representation4URL(resourceHTTP);
-                return true;
+                if (representationDASH != null)
+                    return true;
+                return false;
             }).findFirst().ifPresent(x -> {
                 ResourceHTTPDASH r = (ResourceHTTPDASH) x;
                 RepresentationDASH representationDASH = r.representation4URL(resourceHTTP);
