@@ -16,5 +16,18 @@ done
 sleep 60
 curl -sS --user karaf:karaf --noproxy localhost -X POST -HContent-Type:application/octet-stream http://192.168.100.10:8181/onos/v1/applications?activate=true --data-binary @icn-sdn-1.4-SNAPSHOT.oar
 sleep 15
-bash /home/nenjordi/ICN/icn_onos_app/icncreationitecuniklu.sh
+if [[ "$1" = "CLOSEST" ]]
+then
+    echo "CLOSEST WITHOUT PREFETCH"
+    bash /home/nenjordi/ICN/icn_onos_app/icncreationitecuniklu.sh "CLOSEST"
+elif [[ "$1" = "PREFETCH" ]]
+then
+    echo "PREFETCHING"
+    bash /home/nenjordi/ICN/icn_onos_app/icncreationitecuniklu.sh "PREFETCH"
+
+elif [[ "$1" = "DISTRIBUTED" ]]
+then
+    echo "DISTRIBUTED SVC"
+    bash /home/nenjordi/ICN/icn_onos_app/icncreationitecuniklu.sh "DISTRIBUTED"
+fi
 ./locatehosts.sh
