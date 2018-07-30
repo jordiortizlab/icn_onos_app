@@ -1,1 +1,1 @@
-{ "name" : "squid01", "description" : "Web cache in BBAA@Elrond", "macaddr" : "02:eb:71:00:00:04", "ipaddr" : "10.207.10.103", "port" : "3128", "location" : { "dpid" : "of:000a1c98ec7fea40", "port" : "3" } }
+{ "name" : "squid02", "description" : "Web cache in BBAA@Elrond", "macaddr" : "02:eb:71:00:00:05", "ipaddr" : "10.207.10.103", "port" : "3128", "location" : { "dpid" : "of:000a1c98ec7fea40", "port" : "3" } }
