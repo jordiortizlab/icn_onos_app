@@ -10,13 +10,26 @@ curl -u karaf:karaf -X POST --data @data/proxy.json --header 'Content-Type: appl
 curl -u karaf:karaf -X GET http://$CONTROLLER/onos/icn/proxies
 echo ""
 
-curl -u karaf:karaf -X POST --data @data/icnuniklu.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/icn\?name=uniklu
+
+if [[ "$1" = "CLOSEST" ]]
+then
+    echo "CLOSEST WITHOUT PREFETCH"
+    curl -u karaf:karaf -X POST --data @data/icnunikluCLOSEST.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/icn\?name=uniklu
+elif [[ "$1" = "PREFETCH" ]]
+then
+    echo "PREFETCHING"
+    curl -u karaf:karaf -X POST --data @data/icnunikluCLOSESTDASH.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/icn\?name=uniklu
+elif [[ "$1" = "DISTRIBUTED" ]]
+then
+    echo "DISTRIBUTED SVC"
+        curl -u karaf:karaf -X POST --data @data/icnunikluDISTRIBUTED.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/icn\?name=uniklu
+fi
+
 curl -u karaf:karaf -X GET http://$CONTROLLER/onos/icn/icns
 echo ""
 
 curl -u karaf:karaf -X POST --data @data/cache1.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/cache\?name=uniklu\&cname=squid01
-
-#curl -u karaf:karaf -X POST --data @data/cache2.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/cache\?name=uniklu\&cname=squid02
+curl -u karaf:karaf -X POST --data @data/cache2.json --header 'Content-Type: application/json' http://$CONTROLLER/onos/icn/cache\?name=uniklu\&cname=squid02
 curl -u karaf:karaf -X GET http://$CONTROLLER/onos/icn/caches\?name=uniklu
 echo ""
 
