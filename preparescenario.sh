@@ -16,7 +16,7 @@ do
 done
 # install app
 sleep 60
-curl -sS --user karaf:karaf --noproxy localhost -X POST -HContent-Type:application/octet-stream http://$CONTROLLER:8181/onos/v1/applications?activate=true --data-binary @icn-sdn-1.4-SNAPSHOT.oar
+curl -sS --user karaf:karaf --noproxy localhost -X POST -HContent-Type:application/octet-stream http://$CONTROLLER:8181/onos/v1/applications?activate=true --data-binary @icn-sdn-1.5-SNAPSHOT.oar
 sleep 15
 if [[ "$1" = "CLOSEST" ]]
 then
