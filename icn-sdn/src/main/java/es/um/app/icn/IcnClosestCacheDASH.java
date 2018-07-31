@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 
@@ -134,6 +135,11 @@ public class IcnClosestCacheDASH extends IcnClosestCache {
                 resourceDASH = new ResourceHTTPDASH(resourceHTTP);
                 // Here we can make actions for the mpd in url form
                 pool.execute(new MPDParser(url, resourceDASH));
+                try {
+                    pool.awaitTermination(2, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    log.error("The MPD parsing took more than 2 seconds");  
+                }
             } catch (MalformedURLException e) {
                 log.error("Malformed URL: {}", resourceHTTP.getFullurl());
                 e.printStackTrace();
