@@ -3,6 +3,7 @@ package es.um.app.icn;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -10,7 +11,9 @@ import java.util.stream.Collectors;
  */
 public class ResourceHTTPDASH extends ResourceHTTP {
     public static String DESCRIPTION = "DASH";
-    HashMap<Integer, RepresentationDASH> representations;
+    ConcurrentHashMap<Integer, RepresentationDASH> representations;
+    ConcurrentHashMap<String, Integer> dependencyIdxURI;
+
 
     public ResourceHTTPDASH(ResourceHTTP original) {
         this.setId(original.getId());
@@ -18,12 +21,17 @@ public class ResourceHTTPDASH extends ResourceHTTP {
         this.setFullurl(original.getFullurl());
         this.setName(original.getName());
         this.setRequests(original.getRequests());
-        representations = new HashMap<>();
+        representations = new ConcurrentHashMap<>();
+        dependencyIdxURI = new ConcurrentHashMap<>();
     }
 
     public void putRepresentation(Integer id, RepresentationDASH r) {
-        if(!representations.containsKey(id))
+        if(!representations.containsKey(id)) {
             representations.put(id, r);
+            r.getFullUrls().parallelStream().forEach(x -> {
+                dependencyIdxURI.put(x, r.getId());
+            });
+        }
     }
 
     public RepresentationDASH representation4URL(Resource res) {
@@ -40,6 +48,18 @@ public class ResourceHTTPDASH extends ResourceHTTP {
     public Integer getRepresentationCount() {return representations.size();}
 
     public List<Integer> getRepresentationIds() {return representations.keySet().stream().sorted().collect(Collectors.toList());}
+
+    public Integer getURLRepresentationId(String uri) {
+        return dependencyIdxURI.getOrDefault(uri, -1);
+    }
+
+    public ConcurrentHashMap<String, Integer> getFullUrlsRepresentationIds() {
+        return new ConcurrentHashMap<>(dependencyIdxURI);
+    }
+
+    public boolean containsURL(String uri) {
+        return dependencyIdxURI.containsKey(uri);
+    }
 
     @Override
     public String getType() {
