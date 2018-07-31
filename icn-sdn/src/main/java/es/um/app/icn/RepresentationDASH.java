@@ -1,5 +1,6 @@
 package es.um.app.icn;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
@@ -85,7 +86,7 @@ public class RepresentationDASH {
     public List<String> getFullUrls() {
         ConcurrentLinkedQueue<String> fullurls = new ConcurrentLinkedQueue<>();
         urls.parallelStream().forEach(x -> fullurls.add(baseURL + x));
-        return fullurls.stream().collect(Collectors.toList());
+        return new ArrayList<String>(fullurls);
     }
 
     public List<String> getUrls() {
@@ -93,7 +94,7 @@ public class RepresentationDASH {
     }
 
     public boolean containsResource(String url) {
-        return urls.stream().anyMatch(x -> url.equals(baseURL + x));
+        return urls.parallelStream().anyMatch(x -> url.equals(baseURL + x));
     }
 
     public void putResource(String url) {
